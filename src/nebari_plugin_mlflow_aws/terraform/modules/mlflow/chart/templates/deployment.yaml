@@ -1,0 +1,176 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mlflow.fullname" . }}
+  labels:
+    {{- include "mlflow.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "mlflow.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "mlflow.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "mlflow.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          command:
+          - mlflow
+          args:
+          - server
+          - --host
+          - 0.0.0.0
+          - --port
+          - "5000"
+          - --gunicorn-opts
+          - "--log-level {{ .Values.logLevel }} --timeout {{ .Values.timeout }}"
+          {{- if .Values.storage.backendStoreUri }}
+          - --backend-store-uri
+          - {{ .Values.storage.backendStoreUri }}
+          {{- else if and .Values.storage.db.enabled .Values.storage.db.selfHosted }}
+          - --backend-store-uri
+          - "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
+          {{- end }}
+          {{- if .Values.storage.artifactsDestination }}
+          - --artifacts-destination
+          - {{ .Values.storage.artifactsDestination }}
+          {{- else if .Values.storage.artifacts.minio }}
+          - --artifacts-destination
+          - "s3://{{ .Values.storage.artifacts.minio.bucketName }}"
+          {{- end }}
+          {{- if .Values.storage.defaultArtifactRoot }}
+          - --default-artifact-root
+          - {{ .Values.storage.defaultArtifactRoot }}
+          {{- else if .Values.storage.artifacts.minio }}
+          - --default-artifact-root
+          - "mlflow-artifacts:/"
+          {{- end }}
+          {{- if .Values.ingress.path }}
+          - --static-prefix
+          - {{ .Values.ingress.path }}
+          {{- end }}
+          {{- range $a := .Values.args }}
+          - {{ $a }}
+          {{- end }}
+          {{- if .Values.env }}
+          env:
+          {{ toYaml .Values.env | nindent 10 }}
+          {{- end }}
+          {{- if or .Values.envFrom .Values.storage.artifacts.minio (and .Values.storage.db.enabled .Values.storage.db.selfHosted) }}
+          envFrom:
+          {{- if .Values.storage.artifacts.minio }}
+          - secretRef:
+              name: minio-env
+          {{- end }}
+          {{- if and .Values.storage.db.enabled .Values.storage.db.selfHosted }}
+          - secretRef:
+              name: postgres-env
+          {{- end }}
+          {{- if .Values.envFrom }}
+          {{ toYaml .Values.envFrom | nindent 10 }}
+          {{- end }}
+          {{- end }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+          - name: http
+            containerPort: 5000
+            protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+{{- if .Values.auth.enabled }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik-forward-auth
+  namespace: mlflow
+  labels:
+    app: traefik-forward-auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik-forward-auth
+  template:
+    metadata:
+      labels:
+        app: traefik-forward-auth
+    spec:
+      containers:
+      - image: {{ .Values.auth.image }}:{{ .Values.auth.tag }}
+        name: main
+        ports:
+        - containerPort: 4181
+          protocol: TCP
+          name: http
+        env:
+        - name: LOG_LEVEL
+          value: {{ .Values.logLevel }}
+        - name: INSECURE_COOKIE
+          value: "false"
+        - name: URL_PATH
+          value: {{ .Values.ingress.path }}/_oauth
+        - name: PROVIDERS_OIDC_ISSUER_URL
+          valueFrom:
+            secretKeyRef:
+              name: traefik-forward-auth-env
+              key: issuer_url
+        - name: PROVIDERS_OIDC_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: traefik-forward-auth-env
+              key: client_id
+        - name: PROVIDERS_OIDC_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: traefik-forward-auth-env
+              key: client_secret
+        - name: SECRET
+          valueFrom:
+            secretKeyRef:
+              name: traefik-forward-auth-env
+              key: signing_key
+        - name: DEFAULT_PROVIDER
+          value: "oidc"
+
+{{- end }}
