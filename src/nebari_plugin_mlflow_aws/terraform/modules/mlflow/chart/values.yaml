@@ -8,7 +8,7 @@ image:
   repository: burakince/mlflow
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "2.1.1"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -99,14 +99,16 @@ timeout: 300
 
 storage:
   artifacts:
-    minio:
-      bucketName: mlflow
-      namespace: minio
-      service:
-        name: minio
-        port: 9000
-      existingSecret:
-        name: minio-root-credentials
+    artifactsDestination: ""
+    defaultArtifactRoot: ""
+#    minio:
+#      bucketName: mlflow
+#      namespace: minio
+#      service:
+#        name: minio
+#        port: 9000
+#      existingSecret:
+#        name: minio-root-credentials
   db:
     enabled: true
     selfHosted: true
@@ -120,3 +122,6 @@ storage:
     volume:
       size: 100Mi
       accessMode: ReadWriteOnce
+    dbName: "mlflow_db"
+    username: "mlflow_user"
+    password: ""

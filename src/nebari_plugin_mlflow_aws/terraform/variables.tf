@@ -15,9 +15,17 @@ variable "base_url" {
   type        = string
 }
 
+variable "create_namespace" {
+  type = bool
+}
+
 variable "external_url" {
   description = "External url for keycloak auth endpoint"
   type        = string
+}
+
+variable "namespace" {
+  type = string
 }
 
 variable "valid_redirect_uris" {

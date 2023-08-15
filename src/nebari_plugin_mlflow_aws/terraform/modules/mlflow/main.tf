@@ -1,57 +1,62 @@
+resource "kubernetes_namespace" "this" {
+  count = var.create_namespace ? 1 : 0
+
+  metadata {
+    name = var.namespace
+  }
+}
+
+resource "random_password" "mlflow_postgres" {
+  length  = 32
+  special = false
+}
+
 resource "helm_release" "mlflow" {
   name  = "mlflow"
   chart = "${path.module}/chart"
+  namespace = var.create_namespace ? kubernetes_namespace.this[0].metadata[0].name : var.namespace
 
-  set {
-    name  = "igress.enabled"
-    value = "true"
-  }
-  set {
-    name  = "igress.host"
-    value = var.ingress_host
-  }
-  set {
-    name  = "auth.enabled"
-    value = "true"
-  }
-  set {
-    name  = "env[0].name"
-    value = "MLFLOW_HTTP_REQUEST_TIMEOUT"
-  }
-  set {
-    name  = "env[0].value"
-    value = "3600"
-  }
-  set {
-    name  = "auth.enabled"
-    value = "true"
-  }
-  set {
-    name  = "logLevel"
-    value = "info"
-  }
-  set {
-    name  = "timeout"
-    value = "3600"
-  }
+  values = [
+    yamlencode({
+      logLevel = "info"
+      timeout = "3600"
+      ingress = {
+        enabled = "true"
+        host = var.ingress_host
+      }
+      auth = {
+        enabled = "true"
+        secret = {
+          data = {
+            client_id     = var.keycloak_config["client_id"]
+            client_secret = var.keycloak_config["client_secret"]
+            signing_key   = var.keycloak_config["signing_key"]
 
-  # S3 storage
-  # TODO - move the logic for setting storage path prefixes outside of Chart into Terraform to handle multiple clouds
-  set {
-    name  = "storage.artifactsDestination"
-    value = "s3://${var.s3_bucket_name}"
-  }
-
-  set {
-    name  = "storage.defaultArtifactRoot"
-    value = "s3://${var.s3_bucket_name}"
-  }
-
-  dynamic "set" {
-    for_each = var.keycloak_config
-    content {
-      name  = "auth.secret.data.${each.key}"
-      value = each.value
-    }
-  }
+            issuer_url    = var.keycloak_config["issuer_url"]
+            discovery_url = var.keycloak_config["discovery_url"]
+            auth_url      = var.keycloak_config["auth_url"]
+            token_url     = var.keycloak_config["token_url"]
+            jwks_url      = var.keycloak_config["jwks_url"]
+            logout_url    = var.keycloak_config["logout_url"]
+            userinfo_url  = var.keycloak_config["userinfo_url"]
+          }
+        }
+      }
+      storage = {
+        artifactsDestination = "s3://${var.s3_bucket_name}"
+        defaultArtifactRoot = "s3://${var.s3_bucket_name}"
+      }
+      db = {
+        dbName = "mlflow_db"
+        username = "mlflow_user"
+        password = random_password.mlflow_postgres.result
+      }
+      env = [
+          {
+            name = "MLFLOW_HTTP_REQUEST_TIMEOUT"
+            value = "3600"
+          }
+      ]
+    })
+  ]c
 }

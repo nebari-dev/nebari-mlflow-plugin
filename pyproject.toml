@@ -27,7 +27,6 @@ classifiers = [
 ]
 dependencies = [
   "nebari",
-  "nebari-helm-stage",
 ]
 
 [project.urls]

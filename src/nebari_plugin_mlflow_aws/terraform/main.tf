@@ -70,7 +70,9 @@ module "keycloak" {
 module "mlflow" {
   source = "./modules/mlflow"
 
+  create_namespace = var.create_namespace
   ingress_host   = var.ingress_host
+  namespace = var.namespace
   s3_bucket_name = aws_s3_bucket.artifact_storage.id
   keycloak_config = module.keycloak.config
 }

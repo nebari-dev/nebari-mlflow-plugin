@@ -2,12 +2,11 @@ import inspect
 import sys
 import time
 
+from nebari.schema import Base
 from _nebari.stages.base import NebariTerraformStage
 from nebari.hookspecs import NebariStage, hookimpl
 from pathlib import Path
-from typing import Any, Dict, List
-
-from .cfg import InputSchema
+from typing import Any, Dict, List, Optional
 
 NUM_ATTEMPTS = 10
 TIMEOUT = 10
@@ -16,18 +15,21 @@ CLIENT_NAME = "mlflow"
 
 #TODO this only works for AWS.  How to check
 
+class MlflowConfig(Base):
+    namespace: Optional[str] = None
 
+class InputSchema(Base):
+    ml_flow: MlflowConfig = MlflowConfig()
 
 class MlflowStage(NebariTerraformStage):
     name = "mlflow"
     priority = 102
     wait = True # wait for install to complete on nebari deploy
+    input_schema = InputSchema
 
     @property
     def template_directory(self):
-        # Currently only AWS cloud storage implemented so non-aws will use local (K8S Minio-based) storage
-        provider = self.config.provider if self.config.provider == "aws" else "local"
-        return Path(inspect.getfile(self.__class__)).parent / "terraform" / provider
+        return Path(inspect.getfile(self.__class__)).parent / "terraform"
     
     def check(self, stage_outputs: Dict[str, Dict[str, Any]]) -> bool:
         from keycloak import KeycloakAdmin
@@ -103,10 +105,16 @@ class MlflowStage(NebariTerraformStage):
     def input_vars(self, stage_outputs: Dict[str, Dict[str, Any]]):
         keycloak_config = self.get_keycloak_config(stage_outputs)
         try:
-            node_group_iam_role = stage_outputs["stages/02-infrastructure"]["node_group_iam_role_name"]
+            node_group_iam_role = stage_outputs["stages/02-infrastructure"]["node_group_iam_role_name"]["value"]
             domain = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
         except KeyError:
             raise Exception("Prerequisite stage output(s) not found: stages/02-infrastructure, 04-kubernetes-ingress")
+
+        chart_ns = self.config.ml_flow.namespace
+        create_ns = True
+        if chart_ns == None or chart_ns == "" or chart_ns == self.config.namespace:
+            chart_ns = self.config.namespace
+            create_ns = False
 
         return {
             "realm_id": keycloak_config["realm_id"],
@@ -118,12 +126,11 @@ class MlflowStage(NebariTerraformStage):
                 "name": "forwardauth-deployment",
                 "kind": "Deployment",
                 "namespace": self.config.namespace,
+                },
+            "create_namespace": create_ns,
+            "namespace": chart_ns,
             "node_group_iam_role_name": node_group_iam_role,
             "ingress_host": domain
-            # TODO this will be internal to Terraform now
-            # secret_data = stage_outputs["stages/mlflow-base"]["config"]["value"]
-            # values.update({f"auth.secret.data.{k}": v for (k, v) in secret_data.items()})
-            }
         }
 
     def get_keycloak_config(self, stage_outputs: Dict[str, Dict[str, Any]]):

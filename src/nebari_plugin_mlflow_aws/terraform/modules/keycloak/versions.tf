@@ -16,5 +16,3 @@ provider "keycloak" {
   tls_insecure_skip_verify = true
   base_path                = "/auth"
 }
-
-provider "kubernetes" {}

@@ -4,6 +4,7 @@ metadata:
   name: {{ include "mlflow.fullname" . }}
   labels:
     {{- include "mlflow.labels" . | nindent 4 }}
+  namespace: {{ .Release.Namespace }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
@@ -71,15 +72,19 @@ spec:
           env:
           {{ toYaml .Values.env | nindent 10 }}
           {{- end }}
-          {{- if or .Values.envFrom .Values.storage.artifacts.minio (and .Values.storage.db.enabled .Values.storage.db.selfHosted) }}
+          {{- if and .Values.storage.db.enabled .Values.storage.db.selfHosted }}
+          - name: POSTGRES_USER
+            value: {{ .Values.db.username }}
+          - name: POSTGRES_PASSWORD
+            value: {{ .Values.db.password }}
+          - name: POSTGRES_DB
+            value: {{ .Values.db.dbName }}
+          {{- end }}
+          {{- if or .Values.envFrom .Values.storage.artifacts.minio  }}
           envFrom:
           {{- if .Values.storage.artifacts.minio }}
           - secretRef:
               name: minio-env
-          {{- end }}
-          {{- if and .Values.storage.db.enabled .Values.storage.db.selfHosted }}
-          - secretRef:
-              name: postgres-env
           {{- end }}
           {{- if .Values.envFrom }}
           {{ toYaml .Values.envFrom | nindent 10 }}
@@ -123,7 +128,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: traefik-forward-auth
-  namespace: mlflow
+  namespace: {{ .Release.Namespace }}
   labels:
     app: traefik-forward-auth
 spec:
@@ -153,24 +158,33 @@ spec:
         - name: PROVIDERS_OIDC_ISSUER_URL
           valueFrom:
             secretKeyRef:
-              name: traefik-forward-auth-env
+              name: {{ .Release.Name }}-traefik-forward-auth
               key: issuer_url
         - name: PROVIDERS_OIDC_CLIENT_ID
           valueFrom:
             secretKeyRef:
-              name: traefik-forward-auth-env
+              name: {{ .Release.Name }}-traefik-forward-auth
               key: client_id
         - name: PROVIDERS_OIDC_CLIENT_SECRET
           valueFrom:
             secretKeyRef:
-              name: traefik-forward-auth-env
+              name: {{ .Release.Name }}-traefik-forward-auth
               key: client_secret
         - name: SECRET
           valueFrom:
             secretKeyRef:
-              name: traefik-forward-auth-env
+              name: {{ .Release.Name }}-traefik-forward-auth
               key: signing_key
         - name: DEFAULT_PROVIDER
           value: "oidc"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-traefik-forward-auth
+  namespace: {{ .Release.Namespace }}
+type: Opaque
+stringData: {{ toYaml .Values.auth.secret.data | nindent 2 }}
 
 {{- end }}

@@ -29,9 +29,12 @@ spec:
         env:
         - name: PGDATA
           value: /var/lib/postgresql/mlflow/data
-        envFrom:
-        - secretRef:
-            name: postgres-env
+        - name: POSTGRES_USER
+          value: {{ .Values.db.username }}
+        - name: POSTGRES_PASSWORD
+          value: {{ .Values.db.password }}
+        - name: POSTGRES_DB
+          value: {{ .Values.db.dbName }}
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
         volumeMounts:
