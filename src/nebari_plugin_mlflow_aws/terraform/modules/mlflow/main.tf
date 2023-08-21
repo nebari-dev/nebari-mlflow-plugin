@@ -58,5 +58,5 @@ resource "helm_release" "mlflow" {
           }
       ]
     })
-  ]c
+  ]
 }
