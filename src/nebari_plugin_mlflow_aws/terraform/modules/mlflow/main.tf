@@ -42,6 +42,9 @@ resource "helm_release" "mlflow" {
           }
         }
       }
+      serviceAccount = {
+        name = var.mlflow_sa_name
+      }
       storage = {
         artifactsDestination = "s3://${var.s3_bucket_name}"
         defaultArtifactRoot = "s3://${var.s3_bucket_name}"

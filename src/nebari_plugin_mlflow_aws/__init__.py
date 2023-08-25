@@ -2,7 +2,7 @@ import inspect
 import sys
 import time
 
-from nebari.schema import Base
+from nebari.schema import Base, ProviderEnum
 from _nebari.stages.base import NebariTerraformStage
 from nebari.hookspecs import NebariStage, hookimpl
 from pathlib import Path
@@ -37,13 +37,41 @@ class MlflowStage(NebariTerraformStage):
         
         try:
             _ = stage_outputs["stages/02-infrastructure"]["node_group_iam_policy_name"]
-            _ = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
             
         except KeyError:
             print(
-                "\nPrerequisite stage output(s) not found: stages/02-infrastructure, 04-kubernetes-ingress"
+                "\nPrerequisite stage output(s) not found: stages/02-infrastructure"
             )
             return False
+        
+        # TODO: Module requires EKS cluster is configured for IRSA.  Need to confirm minimum Nebari version once this feature is part of a release.
+        # TODO: Also should configure this module to require Nebari version in pyproject.toml?
+        try:
+            _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]
+            _ = stage_outputs["stages/02-infrastructure"]["oidc_provider_arn"]
+            
+        except KeyError:
+            print(
+                "\nPrerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url, oidc_provider_arn.  Please ensure Nebari version is at least XX."
+            )
+            return False
+        
+        try:
+            _ = self.config.escaped_project_name
+            _ = self.config.provider
+            
+        except KeyError:
+            print(
+                "\nBase config values not found: escaped_project_name, provider"
+            )
+            return False
+        
+        if not self.config.provider == ProviderEnum.aws:
+            print(
+                "\nPlugin 'nebari_plugin_mlflow_aws' developed for AWS only.  Detected provider is {}.".format(self.config.provider)
+            )
+            return False
+
 
         keycloak_config = self.get_keycloak_config(stage_outputs)
         
@@ -105,10 +133,12 @@ class MlflowStage(NebariTerraformStage):
     def input_vars(self, stage_outputs: Dict[str, Dict[str, Any]]):
         keycloak_config = self.get_keycloak_config(stage_outputs)
         try:
-            node_group_iam_role = stage_outputs["stages/02-infrastructure"]["node_group_iam_role_name"]["value"]
             domain = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
+            cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]
+            oidc_provider_arn = stage_outputs["stages/02-infrastructure"]["oidc_provider_arn"]
+            
         except KeyError:
-            raise Exception("Prerequisite stage output(s) not found: stages/02-infrastructure, 04-kubernetes-ingress")
+            raise Exception("Prerequisite stage output(s) not found: stages/04-kubernetes-ingress")
 
         chart_ns = self.config.ml_flow.namespace
         create_ns = True
@@ -117,9 +147,10 @@ class MlflowStage(NebariTerraformStage):
             create_ns = False
 
         return {
+            "name": self.config.escaped_project_name,
             "realm_id": keycloak_config["realm_id"],
             "client_id": CLIENT_NAME,
-            "base_url": f"https://{keycloak_config['domain']}/mlflow",
+                        "base_url": f"https://{keycloak_config['domain']}/mlflow",
             "external_url": keycloak_config["keycloak_url"],
             "valid_redirect_uris": [f"https://{keycloak_config['domain']}/mlflow/_oauth"],
             "signing_key_ref": {
@@ -129,8 +160,10 @@ class MlflowStage(NebariTerraformStage):
                 },
             "create_namespace": create_ns,
             "namespace": chart_ns,
-            "node_group_iam_role_name": node_group_iam_role,
-            "ingress_host": domain
+            "ingress_host": domain,
+            "cluster_oidc_issuer_url": cluster_oidc_issuer_url,
+            "oidc_provider_arn": oidc_provider_arn
+
         }
 
     def get_keycloak_config(self, stage_outputs: Dict[str, Dict[str, Any]]):

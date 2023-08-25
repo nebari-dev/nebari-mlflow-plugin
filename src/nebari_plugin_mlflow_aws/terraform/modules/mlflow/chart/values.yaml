@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: burakince/mlflow
+  repository: ghcr.io/mlflow/mlflow
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "2.1.1"
+  tag: "v2.6.0"
 
 imagePullSecrets: []
 nameOverride: ""

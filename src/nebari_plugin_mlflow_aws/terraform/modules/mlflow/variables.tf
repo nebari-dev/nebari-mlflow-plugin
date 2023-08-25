@@ -20,3 +20,8 @@ variable "keycloak_config" {
 variable "namespace" {
   type = string
 }
+
+variable "mlflow_sa_name" {
+  description = "Name of K8S service account for MLflow workloads"
+  type = string
+}

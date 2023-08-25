@@ -24,6 +24,11 @@ variable "external_url" {
   type        = string
 }
 
+variable "name" {
+  description = "Prefix name to assign to Nebari resources"
+  type        = string
+}
+
 variable "namespace" {
   type = string
 }
@@ -43,13 +48,6 @@ variable "signing_key_ref" {
   default = null
 }
 
-# STORAGE SETTINGS
-# -----------------
-variable "node_group_iam_role_name" {
-  description = "Name of IAM role applied to EKS cluster nodes"
-  type        = string
-}
-
 # MLFLOW SETTINGS
 # -----------------
 variable "ingress_host" {
@@ -57,3 +55,15 @@ variable "ingress_host" {
   type        = string
 }
 
+# IRSA SETTINGS
+# -----------------
+
+output "cluster_oidc_issuer_url" {
+  description = "The URL on the EKS cluster for the OpenID Connect identity provider"
+  type        = string
+}
+
+output "oidc_provider_arn" {
+  description = "The ARN of the OIDC Provider"
+  type        = string
+}

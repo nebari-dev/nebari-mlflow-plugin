@@ -1,5 +1,9 @@
+locals {
+  mlflow_sa_name = "mlflow_sa"
+}
+
 # --------------------------------------------------------------------------
-# Create Storage and Associated IAM Updates
+# Create Storage
 # --------------------------------------------------------------------------
 
 # Ensure bucket name uniqueness with random ID
@@ -9,13 +13,29 @@ resource "random_id" "bucket_name_suffix" {
 }
 
 resource "aws_s3_bucket" "artifact_storage" {
-  bucket = "nebari-mlflow-artifacts-${random_id.bucket_name_suffix.hex}"
+  bucket = "${var.name}-mlflow-artifacts-${random_id.bucket_name_suffix.hex}"
   acl    = "private"
 
   versioning {
     enabled = true
   }
 }
+
+# --------------------------------------------------------------------------
+# Create IAM Resources for IRSA
+# --------------------------------------------------------------------------
+
+module "iam_assumable_role_admin" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
+  version = "~> 4.0"
+
+  create_role                   = true
+  role_name                     = "${var.name}-mlflow-irsa"
+  provider_url                  = replace(var.cluster_oidc_issuer_url, "https://", "")
+  role_policy_arns              = [aws_iam_policy.mlflow_s3.arn]
+  oidc_fully_qualified_subjects = ["system:serviceaccount:${var.namespace}:${local.mlflow_sa_name}"]
+}
+
 
 # Create IAM Policy for full access to S3 and attach to EKS node IAM Role
 
@@ -26,35 +46,29 @@ resource "aws_iam_policy" "mlflow_s3" {
 {
   "Version": "2012-10-17",
   "Statement": [
-    {
-      "Action": [
-        "s3:ListAllMyBuckets"
-      ],
-      "Effect": "Allow",
-      "Resource": "*"
-    },
-    {
-      "Action": [
-        "s3:*"
-      ],
-      "Effect": "Allow",
-      "Resource": "${aws_s3_bucket.artifact_storage.arn}"
-    }
-  ]
-
+        {
+            "Sid": "ListAllBuckets",
+            "Effect": "Allow",
+            "Action": "s3:ListAllMyBuckets",
+            "Resource": "*"
+        },
+        {
+            "Sid": "ListObjectsInBucket",
+            "Effect": "Allow",
+            "Action": "s3:ListBucket",
+            "Resource": "${aws_s3_bucket.artifact_storage.arn}"
+        },
+        {
+            "Sid": "AllObjectActions",
+            "Effect": "Allow",
+            "Action": "s3:*Object",
+            "Resource": "${aws_s3_bucket.artifact_storage.arn}/*"
+        }
+    ]
 }
 
   EOT
 }
-
-resource "aws_iam_role_policy_attachment" "node-group-policy" {
-  policy_arn = aws_iam_policy.mlflow_s3.arn
-  role       = var.node_group_iam_role_name
-}
-
-# --------------------------------------------------------------------------
-# Modules shared by all clouds
-# --------------------------------------------------------------------------
 
 module "keycloak" {
   source = "./modules/keycloak"
@@ -72,6 +86,7 @@ module "mlflow" {
 
   create_namespace = var.create_namespace
   ingress_host   = var.ingress_host
+  mlflow_sa_name = local.mlflow_sa_name
   namespace = var.namespace
   s3_bucket_name = aws_s3_bucket.artifact_storage.id
   keycloak_config = module.keycloak.config
