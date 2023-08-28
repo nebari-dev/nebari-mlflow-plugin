@@ -47,8 +47,8 @@ class MlflowStage(NebariTerraformStage):
         # TODO: Module requires EKS cluster is configured for IRSA.  Need to confirm minimum Nebari version once this feature is part of a release.
         # TODO: Also should configure this module to require Nebari version in pyproject.toml?
         try:
-            _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]
-            _ = stage_outputs["stages/02-infrastructure"]["oidc_provider_arn"]
+            _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
+            _ = stage_outputs["stages/02-infrastructure"]["oidc_provider_arn"]["value"]
             
         except KeyError:
             print(
@@ -134,8 +134,8 @@ class MlflowStage(NebariTerraformStage):
         keycloak_config = self.get_keycloak_config(stage_outputs)
         try:
             domain = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
-            cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]
-            oidc_provider_arn = stage_outputs["stages/02-infrastructure"]["oidc_provider_arn"]
+            cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
+            oidc_provider_arn = stage_outputs["stages/02-infrastructure"]["oidc_provider_arn"]["value"]
             
         except KeyError:
             raise Exception("Prerequisite stage output(s) not found: stages/04-kubernetes-ingress")

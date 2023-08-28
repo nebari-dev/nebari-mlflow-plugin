@@ -47,19 +47,22 @@ spec:
           - --backend-store-uri
           - "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
           {{- end }}
-          {{- if .Values.storage.artifactsDestination }}
+          {{- if .Values.storage.artifacts.artifactsDestination }}
           - --artifacts-destination
-          - {{ .Values.storage.artifactsDestination }}
+          - {{ .Values.storage.artifacts.artifactsDestination }}
           {{- else if .Values.storage.artifacts.minio }}
           - --artifacts-destination
           - "s3://{{ .Values.storage.artifacts.minio.bucketName }}"
           {{- end }}
-          {{- if .Values.storage.defaultArtifactRoot }}
+          {{- if .Values.storage.artifacts.defaultArtifactRoot }}
           - --default-artifact-root
-          - {{ .Values.storage.defaultArtifactRoot }}
-          {{- else if .Values.storage.artifacts.minio }}
+          - {{ .Values.storage.artifacts.defaultArtifactRoot }}
+          {{- else }}
           - --default-artifact-root
           - "mlflow-artifacts:/"
+          {{- end }}
+          {{- if .Values.storage.artifacts.proxyArtifacts }}
+          - --serve-artifacts
           {{- end }}
           {{- if .Values.ingress.path }}
           - --static-prefix

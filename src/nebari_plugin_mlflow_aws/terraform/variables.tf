@@ -58,12 +58,12 @@ variable "ingress_host" {
 # IRSA SETTINGS
 # -----------------
 
-output "cluster_oidc_issuer_url" {
+variable "cluster_oidc_issuer_url" {
   description = "The URL on the EKS cluster for the OpenID Connect identity provider"
   type        = string
 }
 
-output "oidc_provider_arn" {
+variable "oidc_provider_arn" {
   description = "The ARN of the OIDC Provider"
   type        = string
 }

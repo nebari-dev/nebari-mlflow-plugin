@@ -23,5 +23,10 @@ variable "namespace" {
 
 variable "mlflow_sa_name" {
   description = "Name of K8S service account for MLflow workloads"
-  type = string
+  type        = string
+}
+
+variable "mlflow_sa_iam_role_arn" {
+  description = "ARN of IAM role for Mlflow SA to assume"
+  type        = string
 }

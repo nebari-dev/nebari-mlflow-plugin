@@ -1,5 +1,5 @@
 locals {
-  mlflow_sa_name = "mlflow_sa"
+  mlflow_sa_name = "mlflow-sa"
 }
 
 # --------------------------------------------------------------------------
@@ -84,10 +84,11 @@ module "keycloak" {
 module "mlflow" {
   source = "./modules/mlflow"
 
-  create_namespace = var.create_namespace
-  ingress_host   = var.ingress_host
-  mlflow_sa_name = local.mlflow_sa_name
-  namespace = var.namespace
-  s3_bucket_name = aws_s3_bucket.artifact_storage.id
-  keycloak_config = module.keycloak.config
+  create_namespace       = var.create_namespace
+  ingress_host           = var.ingress_host
+  mlflow_sa_name         = local.mlflow_sa_name
+  mlflow_sa_iam_role_arn = module.iam_assumable_role_admin.iam_role_arn
+  namespace              = var.namespace
+  s3_bucket_name         = aws_s3_bucket.artifact_storage.id
+  keycloak_config        = module.keycloak.config
 }

@@ -8,7 +8,7 @@ image:
   repository: ghcr.io/mlflow/mlflow
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "v2.6.0"
+  tag: ""
 
 imagePullSecrets: []
 nameOverride: ""
@@ -101,6 +101,7 @@ storage:
   artifacts:
     artifactsDestination: ""
     defaultArtifactRoot: ""
+    proxyArtifacts: false
 #    minio:
 #      bucketName: mlflow
 #      namespace: minio
