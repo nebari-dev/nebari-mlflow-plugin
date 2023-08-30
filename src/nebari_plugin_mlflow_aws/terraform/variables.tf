@@ -24,15 +24,6 @@ variable "external_url" {
   type        = string
 }
 
-variable "name" {
-  description = "Prefix name to assign to Nebari resources"
-  type        = string
-}
-
-variable "namespace" {
-  type = string
-}
-
 variable "valid_redirect_uris" {
   description = "A list of valid URIs a browser is permitted to redirect to after a successful login or logout"
   type        = list(string)
@@ -55,15 +46,29 @@ variable "ingress_host" {
   type        = string
 }
 
+variable "chart_name" {
+  description = "Name for mlflow chart and its namespaced resources."
+  type        = string
+}
+
+variable "project_name" {
+  description = "Project name to assign to Nebari resources"
+  type        = string
+}
+
+variable "namespace" {
+  type = string
+}
+
+variable "overrides" {
+  type    = map(any)
+  default = {}
+}
+
 # IRSA SETTINGS
 # -----------------
 
 variable "cluster_oidc_issuer_url" {
   description = "The URL on the EKS cluster for the OpenID Connect identity provider"
-  type        = string
-}
-
-variable "oidc_provider_arn" {
-  description = "The ARN of the OIDC Provider"
   type        = string
 }

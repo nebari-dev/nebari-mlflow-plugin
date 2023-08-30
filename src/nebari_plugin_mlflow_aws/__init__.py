@@ -16,10 +16,12 @@ CLIENT_NAME = "mlflow"
 #TODO this only works for AWS.  How to check
 
 class MlflowConfig(Base):
+    name: Optional[str] = "mlflow"
     namespace: Optional[str] = None
+    values: Optional[Dict[str, Any]] = {}
 
 class InputSchema(Base):
-    ml_flow: MlflowConfig = MlflowConfig()
+    mlflow: MlflowConfig = MlflowConfig()
 
 class MlflowStage(NebariTerraformStage):
     name = "mlflow"
@@ -35,24 +37,14 @@ class MlflowStage(NebariTerraformStage):
         from keycloak import KeycloakAdmin
         from keycloak.exceptions import KeycloakError
         
-        try:
-            _ = stage_outputs["stages/02-infrastructure"]["node_group_iam_policy_name"]
-            
-        except KeyError:
-            print(
-                "\nPrerequisite stage output(s) not found: stages/02-infrastructure"
-            )
-            return False
-        
         # TODO: Module requires EKS cluster is configured for IRSA.  Need to confirm minimum Nebari version once this feature is part of a release.
         # TODO: Also should configure this module to require Nebari version in pyproject.toml?
         try:
             _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
-            _ = stage_outputs["stages/02-infrastructure"]["oidc_provider_arn"]["value"]
             
         except KeyError:
             print(
-                "\nPrerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url, oidc_provider_arn.  Please ensure Nebari version is at least XX."
+                "\nPrerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url.  Please ensure Nebari version is at least XX."
             )
             return False
         
@@ -135,19 +127,19 @@ class MlflowStage(NebariTerraformStage):
         try:
             domain = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
             cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
-            oidc_provider_arn = stage_outputs["stages/02-infrastructure"]["oidc_provider_arn"]["value"]
             
         except KeyError:
             raise Exception("Prerequisite stage output(s) not found: stages/04-kubernetes-ingress")
 
-        chart_ns = self.config.ml_flow.namespace
+        chart_ns = self.config.mlflow.namespace
         create_ns = True
         if chart_ns == None or chart_ns == "" or chart_ns == self.config.namespace:
             chart_ns = self.config.namespace
             create_ns = False
 
         return {
-            "name": self.config.escaped_project_name,
+            "chart_name": self.config.mlflow.name,
+            "project_name": self.config.escaped_project_name,
             "realm_id": keycloak_config["realm_id"],
             "client_id": CLIENT_NAME,
                         "base_url": f"https://{keycloak_config['domain']}/mlflow",
@@ -162,7 +154,7 @@ class MlflowStage(NebariTerraformStage):
             "namespace": chart_ns,
             "ingress_host": domain,
             "cluster_oidc_issuer_url": cluster_oidc_issuer_url,
-            "oidc_provider_arn": oidc_provider_arn
+            "overrides": self.config.mlflow.values
 
         }
 

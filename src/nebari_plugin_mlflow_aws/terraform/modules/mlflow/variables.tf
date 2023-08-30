@@ -1,3 +1,8 @@
+variable "chart_name" {
+  description = "Name for mlflow chart and its namespaced resources."
+  type        = string
+}
+
 variable "create_namespace" {
   type = bool
 }
@@ -29,4 +34,9 @@ variable "mlflow_sa_name" {
 variable "mlflow_sa_iam_role_arn" {
   description = "ARN of IAM role for Mlflow SA to assume"
   type        = string
+}
+
+variable "overrides" {
+  type    = map(any)
+  default = {}
 }

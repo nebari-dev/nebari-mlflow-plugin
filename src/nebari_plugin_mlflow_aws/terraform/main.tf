@@ -1,5 +1,5 @@
 locals {
-  mlflow_sa_name = "mlflow-sa"
+  mlflow_sa_name = "${var.chart_name}-sa"
 }
 
 # --------------------------------------------------------------------------
@@ -13,7 +13,7 @@ resource "random_id" "bucket_name_suffix" {
 }
 
 resource "aws_s3_bucket" "artifact_storage" {
-  bucket = "${var.name}-mlflow-artifacts-${random_id.bucket_name_suffix.hex}"
+  bucket = "${var.project_name}-mlflow-artifacts-${random_id.bucket_name_suffix.hex}"
   acl    = "private"
 
   versioning {
@@ -30,7 +30,7 @@ module "iam_assumable_role_admin" {
   version = "~> 4.0"
 
   create_role                   = true
-  role_name                     = "${var.name}-mlflow-irsa"
+  role_name                     = "${var.project_name}-mlflow-irsa"
   provider_url                  = replace(var.cluster_oidc_issuer_url, "https://", "")
   role_policy_arns              = [aws_iam_policy.mlflow_s3.arn]
   oidc_fully_qualified_subjects = ["system:serviceaccount:${var.namespace}:${local.mlflow_sa_name}"]
@@ -84,6 +84,7 @@ module "keycloak" {
 module "mlflow" {
   source = "./modules/mlflow"
 
+  chart_name             = var.chart_name
   create_namespace       = var.create_namespace
   ingress_host           = var.ingress_host
   mlflow_sa_name         = local.mlflow_sa_name
@@ -91,4 +92,5 @@ module "mlflow" {
   namespace              = var.namespace
   s3_bucket_name         = aws_s3_bucket.artifact_storage.id
   keycloak_config        = module.keycloak.config
+  overrides              = var.overrides
 }

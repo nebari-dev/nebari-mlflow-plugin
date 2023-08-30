@@ -22,7 +22,7 @@ resource "random_password" "mlflow_postgres" {
 }
 
 resource "helm_release" "mlflow" {
-  name      = "mlflow"
+  name      = var.chart_name
   chart     = "${path.module}/chart"
   namespace = var.create_namespace ? kubernetes_namespace.this[0].metadata[0].name : var.namespace
 
@@ -79,6 +79,7 @@ resource "helm_release" "mlflow" {
           value = "3600"
         }
       ]
-    })
+    }),
+    yamlencode(var.overrides),
   ]
 }
