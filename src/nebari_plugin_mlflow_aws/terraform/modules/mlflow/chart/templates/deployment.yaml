@@ -45,7 +45,7 @@ spec:
           - {{ .Values.storage.backendStoreUri }}
           {{- else if and .Values.storage.db.enabled .Values.storage.db.selfHosted }}
           - --backend-store-uri
-          - "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
+          - "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@{{ .Release.Name }}-postgres:5432/$(POSTGRES_DB)"
           {{- end }}
           {{- if .Values.storage.artifacts.artifactsDestination }}
           - --artifacts-destination
@@ -130,19 +130,19 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: traefik-forward-auth
+  name: {{ .Release.Name }}-traefik-forward-auth
   namespace: {{ .Release.Namespace }}
   labels:
-    app: traefik-forward-auth
+    app: {{ .Release.Name }}-traefik-forward-auth
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: traefik-forward-auth
+      app: {{ .Release.Name }}-traefik-forward-auth
   template:
     metadata:
       labels:
-        app: traefik-forward-auth
+        app: {{ .Release.Name }}-traefik-forward-auth
     spec:
       containers:
       - image: {{ .Values.auth.image }}:{{ .Values.auth.tag }}

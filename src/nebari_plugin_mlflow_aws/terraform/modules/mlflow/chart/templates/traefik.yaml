@@ -27,7 +27,7 @@ spec:
       port: {{ $svcPort }}
     {{- if .Values.auth.enabled }}
     middlewares:
-    - name: traefik-forward-auth
+    - name: {{ .Release.Name }}-traefik-forward-auth
       namespace: {{ .Release.Namespace }}
     {{- end }}
 
@@ -37,12 +37,12 @@ spec:
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
-  name: traefik-forward-auth
+  name: {{ .Release.Name }}-traefik-forward-auth
   labels:
     {{- include "mlflow.labels" . | nindent 4 }}
 spec:
   forwardAuth:
-    address: http://traefik-forward-auth.{{ .Release.Namespace }}:{{ .Values.auth.service.port }}/
+    address: http://{{ .Release.Name }}-traefik-forward-auth.{{ .Release.Namespace }}:{{ .Values.auth.service.port }}/
     authResponseHeaders:
     - X-Forwarded-User
 
