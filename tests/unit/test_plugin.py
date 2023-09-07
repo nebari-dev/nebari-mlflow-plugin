@@ -7,10 +7,11 @@ class TestConfig(InputSchema):
     domain: str
     escaped_project_name: str = ""
     provider: str
+    mlflow: MlflowConfig = MlflowConfig()
 
 @pytest.fixture(autouse=True)
 def mock_keycloak_connection(monkeypatch):
-    monkeypatch.setattr("nebari_plugin_mlflow_aws.MlflowStage.check._attempt_keycloak_connection", lambda: True)
+    monkeypatch.setattr("nebari_plugin_mlflow_aws.MlflowStage._attempt_keycloak_connection", lambda *args, **kwargs: True)
 
 def test_ctor():
     sut = MlflowStage(output_directory = None, config = None)
@@ -23,7 +24,7 @@ def test_input_vars():
     
 
     stage_outputs = get_stage_outputs()
-    #sut.check(stage_outputs)
+    sut.check(stage_outputs)
     result = sut.input_vars(stage_outputs)
     assert result["chart_name"] == "mlflow"
     assert result["project_name"] == "testprojectname"
@@ -39,35 +40,42 @@ def test_input_vars():
     assert result["cluster_oidc_issuer_url"] == "https://test-oidc-url.com"
     assert result["overrides"] == {}
 
-#def test_incompatible_cloud():
-# TODO
-#
-#def test_default_namespace():
-#    config = TestConfig(namespace = "nebari-ns", domain = "my-test-domain.com")
-#    sut = MlflowStage(output_directory = None, config = config)
-#
-#    stage_outputs = get_stage_outputs()
-#    result = sut.input_vars(stage_outputs)
-#    assert result["create_namespace"] == False
-#    assert result["namespace"] == "nebari-ns"
-#
-#def test_chart_namespace():
-#    config = TestConfig(namespace = "nebari-ns", domain = "my-test-domain.com", label_studio = MlflowStage(namespace = "label-studio-ns"))
-#    sut = MlflowStage(output_directory = None, config = config)
-#
-#    stage_outputs = get_stage_outputs()
-#    result = sut.input_vars(stage_outputs)
-#    assert result["create_namespace"] == True
-#    assert result["namespace"] == "label-studio-ns"
-#
-#def test_chart_overrides():
-#    config = TestConfig(namespace = "nebari-ns", domain = "my-test-domain.com", label_studio = MlflowStage(values = { "foo": "bar" }))
-#    sut = MlflowStage(output_directory = None, config = config)
-#
-#    stage_outputs = get_stage_outputs()
-#    result = sut.input_vars(stage_outputs)
-#    assert result["overrides"] == { "foo": "bar" }
-#
+def test_incompatible_cloud():
+    with pytest.raises(KeyError) as e_info:
+        config = TestConfig(namespace = "nebari-ns", domain = "my-test-domain.com", escaped_project_name="testprojectname", provider="gcp")
+        sut = MlflowStage(output_directory = None, config = config)
+
+        stage_outputs = get_stage_outputs()
+        sut.check(stage_outputs)
+
+    assert str(e_info.value) == "'Plugin nebari_plugin_mlflow_aws developed for aws only.  Detected provider is gcp.'"
+ 
+def test_default_namespace():
+    config = TestConfig(namespace = "nebari-ns", domain = "my-test-domain.com", provider="aws")
+    sut = MlflowStage(output_directory = None, config = config)
+
+    stage_outputs = get_stage_outputs()
+    result = sut.input_vars(stage_outputs)
+    assert result["create_namespace"] == False
+    assert result["namespace"] == "nebari-ns"
+
+def test_chart_namespace():
+    config = TestConfig(namespace = "nebari-ns", domain = "my-test-domain.com", provider="aws", mlflow = MlflowConfig(namespace = "mlflow-ns"))
+    sut = MlflowStage(output_directory = None, config = config)
+
+    stage_outputs = get_stage_outputs()
+    result = sut.input_vars(stage_outputs)
+    assert result["create_namespace"] == True
+    assert result["namespace"] == "mlflow-ns"
+
+def test_chart_overrides():
+    config = TestConfig(namespace = "nebari-ns", domain = "my-test-domain.com", provider="aws", mlflow = MlflowConfig(values = { "foo": "bar" }))
+    sut = MlflowStage(output_directory = None, config = config)
+
+    stage_outputs = get_stage_outputs()
+    result = sut.input_vars(stage_outputs)
+    assert result["overrides"] == { "foo": "bar" }
+
 def get_stage_outputs():
     return {
         "stages/02-infrastructure": {

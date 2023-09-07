@@ -33,10 +33,49 @@ class MlflowStage(NebariTerraformStage):
     def template_directory(self):
         return Path(inspect.getfile(self.__class__)).parent / "terraform"
     
-    def check(self, stage_outputs: Dict[str, Dict[str, Any]]) -> bool:
+    def _attempt_keycloak_connection(
+        keycloak_url,
+        username,
+        password,
+        master_realm_name,
+        client_id,
+        client_realm_name,
+        verify=False,
+        num_attempts=NUM_ATTEMPTS,
+        timeout=TIMEOUT,
+    ):
         from keycloak import KeycloakAdmin
         from keycloak.exceptions import KeycloakError
-        
+
+        for i in range(num_attempts):
+            try:
+                realm_admin = KeycloakAdmin(
+                    keycloak_url,
+                    username=username,
+                    password=password,
+                    realm_name=master_realm_name,
+                    client_id=client_id,
+                    verify=verify,
+                )
+                realm_admin.realm_name = client_realm_name # switch to nebari realm
+                c = realm_admin.get_client_id(CLIENT_NAME) # lookup client guid
+                existing_client = realm_admin.get_client(c) # query client info
+                if existing_client != None and existing_client["name"] == CLIENT_NAME:
+                    print(
+                        f"Attempt {i+1} succeeded connecting to keycloak and nebari client={CLIENT_NAME} exists"
+                    )
+                    return True
+                else:
+                    print(
+                        f"Attempt {i+1} succeeded connecting to keycloak but nebari client={CLIENT_NAME} did not exist"
+                    )
+            except KeycloakError as e:
+                print(f"Attempt {i+1} failed connecting to keycloak {client_realm_name} realm -- {e}")
+            time.sleep(timeout)
+        return False
+    
+    def check(self, stage_outputs: Dict[str, Dict[str, Any]]) -> bool:
+                
         hello = "test"
         # TODO: Module requires EKS cluster is configured for IRSA.  Need to confirm minimum Nebari version once this feature is part of a release.
         # TODO: Also should configure this module to require Nebari version in pyproject.toml?
@@ -60,50 +99,12 @@ class MlflowStage(NebariTerraformStage):
             return False
         
         if not self.config.provider == ProviderEnum.aws:
-            raise KeyError("Plugin 'nebari_plugin_mlflow_aws' developed for 'aws' only.  Detected provider is '{}'.".format(self.config.provider))
+            raise KeyError("Plugin nebari_plugin_mlflow_aws developed for aws only.  Detected provider is {}.".format(self.config.provider))
 
 
         keycloak_config = self.get_keycloak_config(stage_outputs)
         
-        def _attempt_keycloak_connection(
-            keycloak_url,
-            username,
-            password,
-            master_realm_name,
-            client_id,
-            client_realm_name,
-            verify=False,
-            num_attempts=NUM_ATTEMPTS,
-            timeout=TIMEOUT,
-        ):
-            for i in range(num_attempts):
-                try:
-                    realm_admin = KeycloakAdmin(
-                        keycloak_url,
-                        username=username,
-                        password=password,
-                        realm_name=master_realm_name,
-                        client_id=client_id,
-                        verify=verify,
-                    )
-                    realm_admin.realm_name = client_realm_name # switch to nebari realm
-                    c = realm_admin.get_client_id(CLIENT_NAME) # lookup client guid
-                    existing_client = realm_admin.get_client(c) # query client info
-                    if existing_client != None and existing_client["name"] == CLIENT_NAME:
-                        print(
-                            f"Attempt {i+1} succeeded connecting to keycloak and nebari client={CLIENT_NAME} exists"
-                        )
-                        return True
-                    else:
-                        print(
-                            f"Attempt {i+1} succeeded connecting to keycloak but nebari client={CLIENT_NAME} did not exist"
-                        )
-                except KeycloakError as e:
-                    print(f"Attempt {i+1} failed connecting to keycloak {client_realm_name} realm -- {e}")
-                time.sleep(timeout)
-            return False
-
-        if not _attempt_keycloak_connection(
+        if not self._attempt_keycloak_connection(
             keycloak_config["keycloak_url"],
             keycloak_config["username"],
             keycloak_config["password"],
