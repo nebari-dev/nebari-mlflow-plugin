@@ -34,6 +34,7 @@ class MlflowStage(NebariTerraformStage):
         return Path(inspect.getfile(self.__class__)).parent / "terraform"
     
     def _attempt_keycloak_connection(
+        self,
         keycloak_url,
         username,
         password,
@@ -76,9 +77,8 @@ class MlflowStage(NebariTerraformStage):
     
     def check(self, stage_outputs: Dict[str, Dict[str, Any]]) -> bool:
                 
-        hello = "test"
-        # TODO: Module requires EKS cluster is configured for IRSA.  Need to confirm minimum Nebari version once this feature is part of a release.
-        # TODO: Also should configure this module to require Nebari version in pyproject.toml?
+        # TODO: Module requires EKS cluster is configured for IRSA.  Once Nebari version with IRSA is released, should update
+        # this error message and also minimum Nebari version in pyproject.toml
         try:
             _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
             
@@ -103,14 +103,14 @@ class MlflowStage(NebariTerraformStage):
 
 
         keycloak_config = self.get_keycloak_config(stage_outputs)
-        
+
         if not self._attempt_keycloak_connection(
-            keycloak_config["keycloak_url"],
-            keycloak_config["username"],
-            keycloak_config["password"],
-            keycloak_config["master_realm_id"],
-            keycloak_config["master_client_id"],
-            keycloak_config["realm_id"],
+            keycloak_url = keycloak_config["keycloak_url"],
+            username = keycloak_config["username"],
+            password = keycloak_config["password"],
+            master_realm_name = keycloak_config["master_realm_id"],
+            client_id = keycloak_config["master_client_id"],
+            client_realm_name = keycloak_config["realm_id"],
             verify=False,
         ):
             print(
@@ -123,12 +123,27 @@ class MlflowStage(NebariTerraformStage):
 
     def input_vars(self, stage_outputs: Dict[str, Dict[str, Any]]):
         keycloak_config = self.get_keycloak_config(stage_outputs)
+        
+        # TODO: Module requires EKS cluster is configured for IRSA.  Once Nebari version with IRSA is released, should update
+        # this error message and also minimum Nebari version in pyproject.toml
+        try:
+            _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
+            
+        except KeyError:
+            print(
+                "\nPrerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url.  Please ensure Nebari version is at least XX."
+            )
+            return False
+        
         try:
             domain = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
             cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
             
         except KeyError:
             raise Exception("Prerequisite stage output(s) not found: stages/02-infrastructure, stages/04-kubernetes-ingress")
+
+        if not self.config.provider == ProviderEnum.aws:
+            raise KeyError("Plugin nebari_plugin_mlflow_aws developed for aws only.  Detected provider is {}.".format(self.config.provider))
 
         chart_ns = self.config.mlflow.namespace
         create_ns = True

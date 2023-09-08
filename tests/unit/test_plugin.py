@@ -46,7 +46,7 @@ def test_incompatible_cloud():
         sut = MlflowStage(output_directory = None, config = config)
 
         stage_outputs = get_stage_outputs()
-        sut.check(stage_outputs)
+        _ = sut.input_vars(stage_outputs)
 
     assert str(e_info.value) == "'Plugin nebari_plugin_mlflow_aws developed for aws only.  Detected provider is gcp.'"
  
