@@ -123,7 +123,10 @@ class MlflowStage(NebariTerraformStage):
 
     def input_vars(self, stage_outputs: Dict[str, Dict[str, Any]]):
         keycloak_config = self.get_keycloak_config(stage_outputs)
-        
+
+        if not self.config.provider == ProviderEnum.aws:
+            raise KeyError("Plugin nebari_plugin_mlflow_aws developed for aws only.  Detected provider is {}.".format(self.config.provider))
+
         # TODO: Module requires EKS cluster is configured for IRSA.  Once Nebari version with IRSA is released, should update
         # this error message and also minimum Nebari version in pyproject.toml
         try:
@@ -138,9 +141,6 @@ class MlflowStage(NebariTerraformStage):
             
         except KeyError:
             raise Exception("Prerequisite stage output(s) not found: stages/02-infrastructure, stages/04-kubernetes-ingress")
-
-        if not self.config.provider == ProviderEnum.aws:
-            raise KeyError("Plugin nebari_plugin_mlflow_aws developed for aws only.  Detected provider is {}.".format(self.config.provider))
 
         chart_ns = self.config.mlflow.namespace
         create_ns = True
