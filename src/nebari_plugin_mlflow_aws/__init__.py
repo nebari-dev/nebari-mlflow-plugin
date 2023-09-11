@@ -130,11 +130,8 @@ class MlflowStage(NebariTerraformStage):
             _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
             
         except KeyError:
-            print(
-                "\nPrerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url.  Please ensure Nebari version is at least XX."
-            )
-            return False
-        
+            raise Exception("Prerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url.  Please ensure Nebari version is at least XX.")
+                    
         try:
             domain = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
             cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
