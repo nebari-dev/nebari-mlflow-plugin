@@ -75,7 +75,7 @@ class MlflowStage(NebariTerraformStage):
             time.sleep(timeout)
         return False
     
-    def check(self, stage_outputs: Dict[str, Dict[str, Any]]) -> bool:
+    def check(self, stage_outputs: Dict[str, Dict[str, Any]], disable_prompt=False) -> bool:
                 
         # TODO: Module requires EKS cluster is configured for IRSA.  Once Nebari version with IRSA is released, should update
         # this error message and also minimum Nebari version in pyproject.toml
