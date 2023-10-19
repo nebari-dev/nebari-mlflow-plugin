@@ -13,7 +13,7 @@
 - [License](#license)
 
 ## Introduction
-This MLflow extension is designed to integrate into the Nebari deployments utilizing the AWS provider. It provides a robust, collaborative environment for AI/ML professionals to manage experiments, track metrics, and deploy models.
+This MLflow extension is designed to integrate into Nebari deployments utilizing the AWS provider. It provides a robust, collaborative environment for AI/ML professionals to manage experiments, track metrics, and deploy models.
 
 ### Features
 **Centralized Artifact Repository**: Store and manage all your metrics, parameters, and artifacts in a single location, accessible across the multi-tenant platform.
@@ -25,7 +25,7 @@ This MLflow extension is designed to integrate into the Nebari deployments utili
 ### Installation
 Prerequisites:
 - Nebari must be deployed using the provider AWS
-- Nebari version 2023.x.1 or later
+- Nebari version 2023.10.1 or later
 
 Installing the MLflow extension is as straightforward as installing a Python package. Run the following commands:
 
