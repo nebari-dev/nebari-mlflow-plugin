@@ -1,11 +1,4 @@
 locals {
-
-  # TODO: temporary image while team determines where to publish.
-  # Official mlflow image on GCR needs extending because it does not include packages
-  # required for AWS artifacts (boto3) and PostGres (pyschopg2)
-  image_name = "docker.io/kennethfoster/nebari-mlflow-aws"
-  image_tag  = "latest"
-
 }
 
 resource "kubernetes_namespace" "this" {
@@ -51,10 +44,6 @@ resource "helm_release" "mlflow" {
             userinfo_url  = var.keycloak_config["userinfo_url"]
           }
         }
-      }
-      image = {
-        repository = local.image_name
-        tag        = local.image_tag
       }
       serviceAccount = {
         name = var.mlflow_sa_name
