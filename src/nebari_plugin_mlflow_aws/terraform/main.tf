@@ -40,7 +40,7 @@ module "iam_assumable_role_admin" {
 # Create IAM Policy for full access to S3 and attach to EKS node IAM Role
 
 resource "aws_iam_policy" "mlflow_s3" {
-  name_prefix = "s3-mlflow-bucket-access"
+  name_prefix = "${var.project_name}-s3-mlflow-bucket-access"
   description = "Grants workloads full access to S3 bucket for MLflow artifact storage"
   policy      = <<EOT
 {
