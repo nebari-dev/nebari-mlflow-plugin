@@ -56,11 +56,11 @@ resource "helm_release" "mlflow" {
           artifactsDestination = "s3://${var.s3_bucket_name}"
           proxyArtifacts       = "true"
         }
-      }
-      db = {
-        dbName   = "mlflow_db"
-        username = "mlflow_user"
-        password = random_password.mlflow_postgres.result
+        db = {
+          dbName   = "mlflow_db"
+          username = "mlflow_user"
+          password = random_password.mlflow_postgres.result
+        }
       }
       env = [
         {
