@@ -61,7 +61,7 @@ variable "namespace" {
 }
 
 variable "overrides" {
-  type    = map(any)
+  type    = any
   default = {}
 }
 

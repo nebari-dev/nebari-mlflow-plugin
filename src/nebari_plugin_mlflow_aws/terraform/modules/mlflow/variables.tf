@@ -37,6 +37,6 @@ variable "mlflow_sa_iam_role_arn" {
 }
 
 variable "overrides" {
-  type    = map(any)
+  type    = any
   default = {}
 }
