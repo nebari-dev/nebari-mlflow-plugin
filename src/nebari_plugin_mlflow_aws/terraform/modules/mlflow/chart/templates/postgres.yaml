@@ -1,4 +1,6 @@
-{{- if and .Values.storage.db.enabled .Values.storage.db.selfHosted }}
+{{- if and .Values.storage.db.enabled }}
+
+{{- if .Values.storage.db.selfHosted }}
 
 ---
 apiVersion: apps/v1
@@ -8,6 +10,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     app: {{ .Release.Name }}-postgres
+    {{- include "mlflow.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
@@ -29,17 +32,31 @@ spec:
         env:
         - name: PGDATA
           value: /var/lib/postgresql/mlflow/data
-        - name: POSTGRES_USER
-          value: {{ .Values.db.username }}
-        - name: POSTGRES_PASSWORD
-          value: {{ .Values.db.password }}
-        - name: POSTGRES_DB
-          value: {{ .Values.db.dbName }}
+        envFrom:
+        {{- if .Values.storage.db.existingSecret }}
+        - secretRef:
+            name: {{ .Values.storage.db.existingSecret }}
+        {{- else }}
+        - secretRef:
+            name: {{ .Release.Name }}-postgres-env
+        {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
         volumeMounts:
         - name: {{ .Release.Name }}-postgres-pvc
           mountPath: /var/lib/postgresql/mlflow
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
   volumeClaimTemplates:
   - metadata:
       name: {{ .Release.Name }}-postgres-pvc
@@ -56,6 +73,9 @@ kind: Service
 metadata:
   name: {{ .Release.Name }}-postgres
   namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-postgres
+    {{- include "mlflow.labels" . | nindent 4 }}
 spec:
   ports:
   - port: 5432
@@ -63,5 +83,32 @@ spec:
     protocol: TCP
   selector:
     app: {{ .Release.Name }}-postgres
+
+{{- end }}
+
+{{- if not .Values.storage.db.existingSecret }}
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-postgres-env
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-postgres
+    {{- include "mlflow.labels" . | nindent 4 }}
+stringData:
+  {{- if .Values.storage.db.selfHosted }}
+  POSTGRES_SERVER: {{ .Release.Name }}-postgres
+  POSTGRES_PORT: "5432"
+  {{- else }}
+  POSTGRES_SERVER: {{ .Values.storage.db.server | quote }}
+  POSTGRES_PORT: {{ .Values.storage.db.port | quote }}
+  {{- end }}
+  POSTGRES_DB: {{ .Values.storage.db.dbName | quote }}
+  POSTGRES_USER: {{ .Values.storage.db.username | quote }}
+  POSTGRES_PASSWORD: {{ .Values.storage.db.password | quote }}
+
+{{- end }}
 
 {{- end }}

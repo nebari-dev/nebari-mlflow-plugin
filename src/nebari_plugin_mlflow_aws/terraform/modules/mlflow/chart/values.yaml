@@ -8,7 +8,7 @@ image:
   repository: ghcr.io/metrostar/nebari-mlflow-aws
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "20231211-2144"
+  tag: "2.9.2-20231229-1941"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -79,7 +79,15 @@ nodeSelector: {}
 
 tolerations: []
 
-affinity: {}
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: eks.amazonaws.com/nodegroup
+          operator: In
+          values:
+          - general
 
 args: []
 
@@ -102,17 +110,11 @@ storage:
     artifactsDestination: ""
     defaultArtifactRoot: ""
     proxyArtifacts: false
-#    minio:
-#      bucketName: mlflow
-#      namespace: minio
-#      service:
-#        name: minio
-#        port: 9000
-#      existingSecret:
-#        name: minio-root-credentials
   db:
     enabled: true
+    existingSecret: ""
     selfHosted: true
+    autoUpgrade: false
     image:
       name: postgres
       tag: 11
@@ -123,6 +125,8 @@ storage:
     volume:
       size: 100Mi
       accessMode: ReadWriteOnce
+    server: ""
+    port: 5432
     dbName: "mlflow_db"
     username: "mlflow_user"
     password: ""

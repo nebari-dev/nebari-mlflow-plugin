@@ -1,7 +1,7 @@
 # Nebari Plugin MLflow AWS
 
-[![PyPI - Version](https://img.shields.io/pypi/v/nebari-plugin-mlflow-chart.svg)](https://pypi.org/project/nebari-plugin-mlflow-chart)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/nebari-plugin-mlflow-chart.svg)](https://pypi.org/project/nebari-plugin-mlflow-chart)
+[![PyPI - Version](https://img.shields.io/pypi/v/nebari-plugin-mlflow-aws.svg)](https://pypi.org/project/nebari-plugin-mlflow-aws)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/nebari-plugin-mlflow-aws.svg)](https://pypi.org/project/nebari-plugin-mlflow-aws)
 
 -----
 

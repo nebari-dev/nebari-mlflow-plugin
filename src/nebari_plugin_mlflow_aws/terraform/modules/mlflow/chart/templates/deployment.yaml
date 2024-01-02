@@ -28,6 +28,32 @@ spec:
       serviceAccountName: {{ include "mlflow.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if and .Values.storage.db.enabled .Values.storage.db.autoUpgrade }}
+      initContainers:
+        - name: db-upgrade
+          command:
+          - mlflow
+          args:
+          - db
+          - upgrade
+          - "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_SERVER):$(POSTGRES_PORT)/$(POSTGRES_DB)"
+          {{- if .Values.env }}
+          env:
+          {{ toYaml .Values.env | nindent 10 }}
+          {{- end }}
+          envFrom:
+          {{- if .Values.storage.db.existingSecret }}
+          - secretRef:
+              name: {{ .Values.storage.db.existingSecret }}
+          {{- else }}
+          - secretRef:
+              name: {{ .Release.Name }}-postgres-env
+          {{- end }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           command:
@@ -45,7 +71,7 @@ spec:
           - {{ .Values.storage.backendStoreUri }}
           {{- else if and .Values.storage.db.enabled .Values.storage.db.selfHosted }}
           - --backend-store-uri
-          - "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@{{ .Release.Name }}-postgres:5432/$(POSTGRES_DB)"
+          - "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_SERVER):$(POSTGRES_PORT)/$(POSTGRES_DB)"
           {{- end }}
           {{- if .Values.storage.artifacts.artifactsDestination }}
           - --artifacts-destination
@@ -75,19 +101,20 @@ spec:
           env:
           {{ toYaml .Values.env | nindent 10 }}
           {{- end }}
-          {{- if and .Values.storage.db.enabled .Values.storage.db.selfHosted }}
-          - name: POSTGRES_USER
-            value: {{ .Values.db.username }}
-          - name: POSTGRES_PASSWORD
-            value: {{ .Values.db.password }}
-          - name: POSTGRES_DB
-            value: {{ .Values.db.dbName }}
-          {{- end }}
-          {{- if or .Values.envFrom .Values.storage.artifacts.minio  }}
+          {{- if or .Values.envFrom .Values.storage.artifacts.minio .Values.storage.db.enabled }}
           envFrom:
           {{- if .Values.storage.artifacts.minio }}
           - secretRef:
-              name: minio-env
+              name: {{ .Release.Name }}-minio-env
+          {{- end }}
+          {{- if .Values.storage.db.enabled }}
+          {{- if .Values.storage.db.existingSecret }}
+          - secretRef:
+              name: {{ .Values.storage.db.existingSecret }}
+          {{- else }}
+          - secretRef:
+              name: {{ .Release.Name }}-postgres-env
+          {{- end }}
           {{- end }}
           {{- if .Values.envFrom }}
           {{ toYaml .Values.envFrom | nindent 10 }}
@@ -180,6 +207,18 @@ spec:
               key: signing_key
         - name: DEFAULT_PROVIDER
           value: "oidc"
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 
 ---
 apiVersion: v1
