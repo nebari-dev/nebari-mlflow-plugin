@@ -13,12 +13,10 @@ TIMEOUT = 10
 
 CLIENT_NAME = "mlflow"
 
-# TODO this only works for AWS.  How to check
-
-
 class MlflowConfig(Base):
     name: Optional[str] = "mlflow"
     namespace: Optional[str] = None
+    enable_s3_encryption: Optional[bool] = True
     values: Optional[Dict[str, Any]] = {}
 
 
@@ -171,6 +169,7 @@ class MlflowStage(NebariTerraformStage):
                 "namespace": self.config.namespace,
             },
             "create_namespace": create_ns,
+            "enable_s3_encryption": self.config.mlflow.enable_s3_encryption,
             "namespace": chart_ns,
             "ingress_host": domain,
             "cluster_oidc_issuer_url": cluster_oidc_issuer_url,

@@ -21,6 +21,24 @@ resource "aws_s3_bucket" "artifact_storage" {
   }
 }
 
+# If enable_s3_encryption is true, create a key and apply Server Side Encryption to S3 bucket
+resource "aws_kms_key" "mlflow_kms_key" {
+  count                   = var.enable_s3_encryption ? 1 : 0
+  description             = "This key is used to encrypt bucket objects for the AWS MLflow extension"
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "mlflow_s3_encryption" {
+  count  = var.enable_s3_encryption ? 1 : 0
+  bucket = aws_s3_bucket.artifact_storage.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.mlflow_kms_key[0].arn
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
 # --------------------------------------------------------------------------
 # Create IAM Resources for IRSA
 # --------------------------------------------------------------------------
