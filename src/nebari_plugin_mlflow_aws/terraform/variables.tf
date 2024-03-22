@@ -60,6 +60,11 @@ variable "namespace" {
   type = string
 }
 
+variable "enable_s3_encryption" {
+  type = bool
+  default = true
+}
+
 variable "overrides" {
   type    = any
   default = {}
