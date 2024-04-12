@@ -56,6 +56,11 @@ variable "project_name" {
   type        = string
 }
 
+variable "region" {
+  description = "AWS region for S3 bucket"
+  type        = string
+}
+
 variable "namespace" {
   type = string
 }

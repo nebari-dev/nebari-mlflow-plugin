@@ -1,3 +1,8 @@
+# Configure the AWS Provider
+provider "aws" {
+  region = var.region
+}
+
 locals {
   mlflow_sa_name = "${var.chart_name}-sa"
 }
