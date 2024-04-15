@@ -158,6 +158,7 @@ class MlflowStage(NebariTerraformStage):
         return {
             "chart_name": self.config.mlflow.name,
             "project_name": self.config.escaped_project_name,
+            "region": self.config.amazon_web_services.region,
             "realm_id": keycloak_config["realm_id"],
             "client_id": CLIENT_NAME,
             "base_url": f"https://{keycloak_config['domain']}/mlflow",
