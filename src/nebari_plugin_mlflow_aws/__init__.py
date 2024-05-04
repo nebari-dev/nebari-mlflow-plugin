@@ -55,14 +55,15 @@ class MlflowStage(NebariTerraformStage):
                     keycloak_url,
                     username=username,
                     password=password,
-                    realm_name=master_realm_name,
+                    user_realm_name=master_realm_name,
+                    realm_name=client_realm_name,
                     client_id=client_id,
                     verify=verify,
                 )
                 # DELETE AFTER DEBUG
                 print(f"URL: {keycloak_url}, UN: {username}, PW: {password}")
                 print(f"Client realm name: {client_realm_name}")
-                realm_admin.realm_name = client_realm_name  # switch to nebari realm
+                #realm_admin.realm_name = client_realm_name  # switch to nebari realm
                 c = realm_admin.get_client_id(CLIENT_NAME)  # lookup client guid
                 # DELETE AFTER DEBUG
                 print(f"Client guid: {c}")
