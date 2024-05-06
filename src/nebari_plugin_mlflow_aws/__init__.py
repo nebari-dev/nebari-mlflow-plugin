@@ -46,9 +46,11 @@ class MlflowStage(NebariTerraformStage):
         num_attempts=NUM_ATTEMPTS,
         timeout=TIMEOUT,
     ):
+        import keycloak
         from keycloak import KeycloakAdmin
         from keycloak.exceptions import KeycloakError
 
+        print(f"Keycloak version: {keycloak.__version__}")
         for i in range(num_attempts):
             try:
                 realm_admin = KeycloakAdmin(
@@ -60,15 +62,8 @@ class MlflowStage(NebariTerraformStage):
                     client_id=client_id,
                     verify=verify,
                 )
-                # DELETE AFTER DEBUG
-                print(f"URL: {keycloak_url}, UN: {username}, PW: {password}")
-                print(f"Client realm name: {client_realm_name}")
-                #realm_admin.realm_name = client_realm_name  # switch to nebari realm
                 c = realm_admin.get_client_id(CLIENT_NAME)  # lookup client guid
-                # DELETE AFTER DEBUG
-                print(f"Client guid: {c}")
                 existing_client = realm_admin.get_client(c)  # query client info
-                print(f"existing_client: {existing_client} and CLIENT_NAME: {CLIENT_NAME}")
                 if existing_client != None and existing_client["name"] == CLIENT_NAME:
                     print(f"Attempt {i+1} succeeded connecting to keycloak and nebari client={CLIENT_NAME} exists")
                     return True
