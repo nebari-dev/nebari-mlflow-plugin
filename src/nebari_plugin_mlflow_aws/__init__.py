@@ -46,11 +46,9 @@ class MlflowStage(NebariTerraformStage):
         num_attempts=NUM_ATTEMPTS,
         timeout=TIMEOUT,
     ):
-        import keycloak
         from keycloak import KeycloakAdmin
         from keycloak.exceptions import KeycloakError
 
-        print(f"Keycloak version: {keycloak.__version__}")
         for i in range(num_attempts):
             try:
                 realm_admin = KeycloakAdmin(
