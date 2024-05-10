@@ -8,31 +8,53 @@ from nebari.hookspecs import NebariStage, hookimpl
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from pydantic import field_validator
+
 NUM_ATTEMPTS = 10
 TIMEOUT = 10
 
 CLIENT_NAME = "mlflow"
 
-class MlflowConfig(Base):
+class MlflowConfigBase(Base):
     name: Optional[str] = "mlflow"
     namespace: Optional[str] = None
-    enable_s3_encryption: Optional[bool] = True
     values: Optional[Dict[str, Any]] = {}
+
+class MlflowConfigAWS(Base):
+    enable_s3_encryption: Optional[bool] = True
+
+class MlflowConfigAzure(Base):
+    blob_storage: Optional[bool] = True
+
+
 
 
 class InputSchema(Base):
-    mlflow: MlflowConfig = MlflowConfig()
+    mlflow: MlflowConfigBase
+
 
 
 class MlflowStage(NebariTerraformStage):
     name = "mlflow"
     priority = 102
     wait = True  # wait for install to complete on nebari deploy
-    input_schema = InputSchema
+
+    @property
+    def input_schema(self):
+        return {ProviderEnum.aws: MlflowConfigAWS, ProviderEnum.azure: MlflowConfigAzure}[self.config.provider]
+
+    # def __init__(self, *args, **kwargs):
+    #     self.input_schema = {'aws': MlflowConfigAWS, 'azure': MlflowConfigAzure}[self.config.provider]()
+    #     super().__init__(*args, **kwargs)
 
     @property
     def template_directory(self):
-        return Path(inspect.getfile(self.__class__)).parent / "terraform"
+        def template_directory(self):
+            return (
+                Path(inspect.getfile(self.__class__)).parent
+                / "template"
+                / self.config.provider.value
+            )
 
     def _attempt_keycloak_connection(
         self,
@@ -77,105 +99,140 @@ class MlflowStage(NebariTerraformStage):
     def check(self, stage_outputs: Dict[str, Dict[str, Any]], disable_prompt=False) -> bool:
         # TODO: Module requires EKS cluster is configured for IRSA.  Once Nebari version with IRSA is released, should update
         # this error message and also minimum Nebari version in pyproject.toml
-        try:
-            _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
+        if self.config.provider == ProviderEnum.aws:
+            try:
+                _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
 
-        except KeyError:
-            print(
-                "\nPrerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url.  Please ensure Nebari version is at least XX."
-            )
-            return False
-
-        try:
-            _ = self.config.escaped_project_name
-            _ = self.config.provider
-
-        except KeyError:
-            print("\nBase config values not found: escaped_project_name, provider")
-            return False
-
-        if not self.config.provider == ProviderEnum.aws:
-            raise KeyError(
-                "Plugin nebari_plugin_mlflow_aws developed for aws only.  Detected provider is {}.".format(
-                    self.config.provider
+            except KeyError:
+                print(
+                    "\nPrerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url.  Please ensure Nebari version is at least XX."
                 )
-            )
+                return False
 
-        keycloak_config = self.get_keycloak_config(stage_outputs)
+            try:
+                _ = self.config.escaped_project_name
+                _ = self.config.provider
 
-        if not self._attempt_keycloak_connection(
-            keycloak_url=keycloak_config["keycloak_url"],
-            username=keycloak_config["username"],
-            password=keycloak_config["password"],
-            master_realm_name=keycloak_config["master_realm_id"],
-            client_id=keycloak_config["master_client_id"],
-            client_realm_name=keycloak_config["realm_id"],
-            verify=False,
-        ):
-            print(
-                f"ERROR: unable to connect to keycloak master realm and ensure that nebari client={CLIENT_NAME} exists"
-            )
-            sys.exit(1)
+            except KeyError:
+                print("\nBase config values not found: escaped_project_name, provider")
+                return False
 
-        print(f"Keycloak successfully configured with {CLIENT_NAME} client")
+            keycloak_config = self.get_keycloak_config(stage_outputs)
+
+            if not self._attempt_keycloak_connection(
+                keycloak_url=keycloak_config["keycloak_url"],
+                username=keycloak_config["username"],
+                password=keycloak_config["password"],
+                master_realm_name=keycloak_config["master_realm_id"],
+                client_id=keycloak_config["master_client_id"],
+                client_realm_name=keycloak_config["realm_id"],
+                verify=False,
+            ):
+                print(
+                    f"ERROR: unable to connect to keycloak master realm and ensure that nebari client={CLIENT_NAME} exists"
+                )
+                sys.exit(1)
+
+            print(f"Keycloak successfully configured with {CLIENT_NAME} client")
+        elif self.config.provider == ProviderEnum.azure.value:
+            try:
+                _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
+            except KeyError:
+                print(
+                    "\nPrerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url.  Please ensure Nebari version is at least XX."
+                )
+                return False
+
+            try:
+                _ = self.config.escaped_project_name
+                _ = self.config.provider
+            except KeyError:
+                print("\nBase config values not found: escaped_project_name, provider")
+                return False
+
+            keycloak_config = self.get_keycloak_config(stage_outputs)
+
+            if not self._attempt_keycloak_connection(
+                keycloak_url=keycloak_config["keycloak_url"],
+                username=keycloak_config["username"],
+                password=keycloak_config["password"],
+                master_realm_name=keycloak_config["master_realm_id"],
+                client_id=keycloak_config["master_client_id"],
+                client_realm_name=keycloak_config["realm_id"],
+                verify=False,
+            ):
+                print(
+                    f"ERROR: unable to connect to keycloak master realm and ensure that nebari client={CLIENT_NAME} exists"
+                )
+                sys.exit(1)
+
+            print(f"Keycloak successfully configured with {CLIENT_NAME} client")
+        else:
+            raise NotImplementedError(f"Provider {self.config.provider} not implemented")
+
         return True
 
     def input_vars(self, stage_outputs: Dict[str, Dict[str, Any]]):
-        keycloak_config = self.get_keycloak_config(stage_outputs)
+        if self.config.provider == ProviderEnum.aws:
+            keycloak_config = self.get_keycloak_config(stage_outputs)
 
-        if not self.config.provider == ProviderEnum.aws:
-            raise KeyError(
-                "Plugin nebari_plugin_mlflow_aws developed for aws only.  Detected provider is {}.".format(
-                    self.config.provider
+            if not self.config.provider == ProviderEnum.aws:
+                raise KeyError(
+                    "Plugin nebari_plugin_mlflow_aws developed for aws only.  Detected provider is {}.".format(
+                        self.config.provider
+                    )
                 )
-            )
 
-        # TODO: Module requires EKS cluster is configured for IRSA.  Once Nebari version with IRSA is released, should update
-        # this error message and also minimum Nebari version in pyproject.toml
-        try:
-            _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
+            # TODO: Module requires EKS cluster is configured for IRSA.  Once Nebari version with IRSA is released, should update
+            # this error message and also minimum Nebari version in pyproject.toml
+            try:
+                _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
 
-        except KeyError:
-            raise Exception(
-                "Prerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url.  Please ensure Nebari version is at least XX."
-            )
+            except KeyError:
+                raise Exception(
+                    "Prerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url.  Please ensure Nebari version is at least XX."
+                )
 
-        try:
-            domain = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
-            cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
+            try:
+                domain = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
+                cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
 
-        except KeyError:
-            raise Exception(
-                "Prerequisite stage output(s) not found: stages/02-infrastructure, stages/04-kubernetes-ingress"
-            )
+            except KeyError:
+                raise Exception(
+                    "Prerequisite stage output(s) not found: stages/02-infrastructure, stages/04-kubernetes-ingress"
+                )
 
-        chart_ns = self.config.mlflow.namespace
-        create_ns = True
-        if chart_ns == None or chart_ns == "" or chart_ns == self.config.namespace:
-            chart_ns = self.config.namespace
-            create_ns = False
+            chart_ns = self.config.mlflow.namespace
+            create_ns = True
+            if chart_ns == None or chart_ns == "" or chart_ns == self.config.namespace:
+                chart_ns = self.config.namespace
+                create_ns = False
 
-        return {
-            "chart_name": self.config.mlflow.name,
-            "project_name": self.config.escaped_project_name,
-            "region": self.config.amazon_web_services.region,
-            "realm_id": keycloak_config["realm_id"],
-            "client_id": CLIENT_NAME,
-            "base_url": f"https://{keycloak_config['domain']}/mlflow",
-            "external_url": keycloak_config["keycloak_url"],
-            "valid_redirect_uris": [f"https://{keycloak_config['domain']}/mlflow/_oauth"],
-            "signing_key_ref": {
-                "name": "forwardauth-deployment",
-                "kind": "Deployment",
-                "namespace": self.config.namespace,
-            },
-            "create_namespace": create_ns,
-            "enable_s3_encryption": self.config.mlflow.enable_s3_encryption,
-            "namespace": chart_ns,
-            "ingress_host": domain,
-            "cluster_oidc_issuer_url": cluster_oidc_issuer_url,
-            "overrides": self.config.mlflow.values,
-        }
+            return {
+                "chart_name": self.config.mlflow.name,
+                "project_name": self.config.escaped_project_name,
+                "region": self.config.amazon_web_services.region,
+                "realm_id": keycloak_config["realm_id"],
+                "client_id": CLIENT_NAME,
+                "base_url": f"https://{keycloak_config['domain']}/mlflow",
+                "external_url": keycloak_config["keycloak_url"],
+                "valid_redirect_uris": [f"https://{keycloak_config['domain']}/mlflow/_oauth"],
+                "signing_key_ref": {
+                    "name": "forwardauth-deployment",
+                    "kind": "Deployment",
+                    "namespace": self.config.namespace,
+                },
+                "create_namespace": create_ns,
+                "enable_s3_encryption": self.config.mlflow.enable_s3_encryption,
+                "namespace": chart_ns,
+                "ingress_host": domain,
+                "cluster_oidc_issuer_url": cluster_oidc_issuer_url,
+                "overrides": self.config.mlflow.values,
+            }
+        elif self.config.provider == ProviderEnum.azure:
+            Exception("Adam you need to implement this!")
+        else:
+            raise NotImplementedError(f"Provider {self.config.provider} not implemented")
 
     def get_keycloak_config(self, stage_outputs: Dict[str, Dict[str, Any]]):
         directory = "stages/05-kubernetes-keycloak"
