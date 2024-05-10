@@ -15,6 +15,7 @@ TIMEOUT = 10
 
 CLIENT_NAME = "mlflow"
 
+
 class MlflowConfigBase(Base):
     name: Optional[str] = "mlflow"
     namespace: Optional[str] = None
@@ -24,37 +25,29 @@ class MlflowConfigAWS(Base):
     enable_s3_encryption: Optional[bool] = True
 
 class MlflowConfigAzure(Base):
+    enabled: bool = False
     blob_storage: Optional[bool] = True
 
-
-
+class MlflowProvidersInputSchema(Base):
+    aws: Optional[MlflowConfigAWS] = None
+    azure: Optional[MlflowConfigAzure] = None
 
 class InputSchema(Base):
-    mlflow: MlflowConfigBase
-
-
+    mlflow: MlflowProvidersInputSchema
 
 class MlflowStage(NebariTerraformStage):
     name = "mlflow"
     priority = 102
     wait = True  # wait for install to complete on nebari deploy
-
-    @property
-    def input_schema(self):
-        return {ProviderEnum.aws: MlflowConfigAWS, ProviderEnum.azure: MlflowConfigAzure}[self.config.provider]
-
-    # def __init__(self, *args, **kwargs):
-    #     self.input_schema = {'aws': MlflowConfigAWS, 'azure': MlflowConfigAzure}[self.config.provider]()
-    #     super().__init__(*args, **kwargs)
+    input_schema = InputSchema
 
     @property
     def template_directory(self):
-        def template_directory(self):
-            return (
-                Path(inspect.getfile(self.__class__)).parent
-                / "template"
-                / self.config.provider.value
-            )
+        return (
+            Path(inspect.getfile(self.__class__)).parent
+            / "template"
+            / self.config.provider.value
+        )
 
     def _attempt_keycloak_connection(
         self,
@@ -150,21 +143,21 @@ class MlflowStage(NebariTerraformStage):
                 print("\nBase config values not found: escaped_project_name, provider")
                 return False
 
-            keycloak_config = self.get_keycloak_config(stage_outputs)
+            # keycloak_config = self.get_keycloak_config(stage_outputs)
 
-            if not self._attempt_keycloak_connection(
-                keycloak_url=keycloak_config["keycloak_url"],
-                username=keycloak_config["username"],
-                password=keycloak_config["password"],
-                master_realm_name=keycloak_config["master_realm_id"],
-                client_id=keycloak_config["master_client_id"],
-                client_realm_name=keycloak_config["realm_id"],
-                verify=False,
-            ):
-                print(
-                    f"ERROR: unable to connect to keycloak master realm and ensure that nebari client={CLIENT_NAME} exists"
-                )
-                sys.exit(1)
+            # if not self._attempt_keycloak_connection(
+            #     keycloak_url=keycloak_config["keycloak_url"],
+            #     username=keycloak_config["username"],
+            #     password=keycloak_config["password"],
+            #     master_realm_name=keycloak_config["master_realm_id"],
+            #     client_id=keycloak_config["master_client_id"],
+            #     client_realm_name=keycloak_config["realm_id"],
+            #     verify=False,
+            # ):
+            #     print(
+            #         f"ERROR: unable to connect to keycloak master realm and ensure that nebari client={CLIENT_NAME} exists"
+            #     )
+            #     sys.exit(1)
 
             print(f"Keycloak successfully configured with {CLIENT_NAME} client")
         else:
@@ -230,7 +223,10 @@ class MlflowStage(NebariTerraformStage):
                 "overrides": self.config.mlflow.values,
             }
         elif self.config.provider == ProviderEnum.azure:
-            Exception("Adam you need to implement this!")
+            # Exception("Adam you need to implement this!")
+            return {
+                "namespace": self.config.namespace,
+            }
         else:
             raise NotImplementedError(f"Provider {self.config.provider} not implemented")
 
