@@ -1,16 +1,1 @@
 # https://github.com/bitnami/charts/blob/fae194af0f55687e2b825e4aefd8501ed788a9fc/bitnami/mlflow/values.yaml
-namespaceOverride: "dev"
-image:
-  repository: balast/mlflow
-  tag: 2.12.1-debian-12-r0-azure
-tracking:
-  auth:
-    enabled: false
-  extraArgs: ["--artifacts-destination", "wasbs://nebari-mlflow-storage@nebarimlflow.blob.core.windows.net/"]
-  podLabels: 
-    azure.workload.identity/use: "true"
-  serviceAccount:
-    create: false
-    name: "default"
-minio:
-  enabled: false

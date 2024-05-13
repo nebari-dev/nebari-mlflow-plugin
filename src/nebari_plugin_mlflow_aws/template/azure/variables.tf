@@ -14,15 +14,15 @@ variable "release_name" {
 
 # KEYCLOAK SETTINGS
 # -----------------
-variable "realm_id" {
-  description = "Keycloak realm_id"
-  type        = string
-}
+# variable "realm_id" {
+#   description = "Keycloak realm_id"
+#   type        = string
+# }
 
-variable "client_id" {
-  description = "OpenID Client ID"
-  type        = string
-}
+# variable "client_id" {
+#   description = "OpenID Client ID"
+#   type        = string
+# }
 
 # variable "base_url" {
 #   description = "Default URL to use when the auth server needs to redirect or link back to the client"
@@ -36,12 +36,38 @@ variable "client_id" {
 variable "external_url" {
   description = "External url for keycloak auth endpoint"
   type        = string
+  default     = "adam2.nebari.dev"  # TODO: Grab this from module output
 }
 
-variable "valid_redirect_uris" {
-  description = "A list of valid URIs a browser is permitted to redirect to after a successful login or logout"
-  type        = list(string)
+variable "forwardauth-service-name" {
+  type = string
+  default = "forwardauth-service"  # TODO: Grab this from module output
 }
+
+variable "cluster_oidc_issuer_url" {
+  description = "The URL on the AKS cluster for the OpenID Connect identity provider"
+  type        = string
+}
+
+variable "storage_resource_group_name" {
+  type = string
+}
+
+variable "storage_account_name" {
+  type = string
+}
+
+
+variable "region" {
+  type = string
+}
+
+
+# variable "valid_redirect_uris" {
+#   description = "A list of valid URIs a browser is permitted to redirect to after a successful login or logout"
+#   type        = list(string)
+# }
+
 
 # variable "signing_key_ref" {
 #   description = ""
@@ -52,6 +78,8 @@ variable "valid_redirect_uris" {
 #   })
 #   default = null
 # }
+
+
 
 # # MLFLOW SETTINGS
 # # -----------------

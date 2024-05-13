@@ -224,8 +224,18 @@ class MlflowStage(NebariTerraformStage):
             }
         elif self.config.provider == ProviderEnum.azure:
             # Exception("Adam you need to implement this!")
+            cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
+            external_url = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
+            resource_group_name = stage_outputs["stages/02-infrastructure"]["resource_group_name"]["value"]        
+
             return {
                 "namespace": self.config.namespace,
+                "external_url": external_url,
+                # "forwardauth-service-name": "",
+                "cluster_oidc_issuer_url": cluster_oidc_issuer_url,
+                "storage_resource_group_name": resource_group_name,
+                "region": self.config.azure.region,
+                "storage_account_name": self.config.project_name[:15] + 'mlfsa' + self.config.azure.storage_account_postfix,
             }
         else:
             raise NotImplementedError(f"Provider {self.config.provider} not implemented")
