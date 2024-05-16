@@ -23,6 +23,9 @@ resource "helm_release" "mlflow" {
         "repository" = "balast/mlflow",  # TODO: Change this to Quansight or Nebari image
         "tag"        = "2.12.1-debian-12-r0-azure"
       },
+      "run" = {
+        enabled = false
+      },
       "tracking" = {
         "auth" = {
           "enabled" = false  # TODO: enable this using forwardauth
