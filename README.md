@@ -43,15 +43,6 @@ mlflow:
   namespace: mlflow
 ```
 
-#### Exposing MLflow workload via Ingress
-In order for the traefik ingress to route users' web requests to the MLflow workload, add or update the block in your Nebari configuration file. Be sure to update this block if you've configured a namespace other than `mlflow`.
-```yaml
-ingress:
-  terraform_overrides:
-    additional-arguments:
-    - "--providers.kubernetescrd.namespaces=mlflow"
-```
-
 #### Configuring MLflow Tracking URL
 You may set the `MLFLOW_TRACKING_URL` to configure mlflow in individual users' Nebari instances by adding or updating an additional block in your Nebari configuration file. Note that 'dev' in the URL below corresponds to the Kubernetes namespace where mlflow is deployed, so if you have assigned a custom namespace, that URL will need updating.
 ```yaml
