@@ -1,4 +1,4 @@
-# Nebari Plugin MLflow AWS
+# Nebari MLFlow Plugin
 
 **Table of Contents**
 
