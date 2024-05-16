@@ -7,7 +7,7 @@ locals {
 }
 
 resource "helm_release" "mlflow" {
-  name       = var.release_name
+  name       = var.helm-release-name
   namespace  = var.namespace
   repository = "https://charts.bitnami.com/bitnami"
   chart      = "mlflow"
@@ -164,7 +164,7 @@ resource "kubernetes_manifest" "mlflow-svc" {
       ]
       "selector" = {
         "app.kubernetes.io/component" = "tracking"
-        "app.kubernetes.io/instance" = var.release_name
+        "app.kubernetes.io/instance" = var.helm-release-name
       }
     }
   }
@@ -187,6 +187,11 @@ resource "kubernetes_manifest" "mlflow-ingressroute" {
 
           middlewares = [
             {
+              name      = var.forwardauth-middleware-name
+              namespace = var.namespace
+            },            
+
+            {
               name      = kubernetes_manifest.mlflow-add-slash.manifest.metadata.name
               namespace = var.namespace
             },
@@ -194,10 +199,6 @@ resource "kubernetes_manifest" "mlflow-ingressroute" {
               name      = kubernetes_manifest.mlflow-middleware-stripprefix.manifest.metadata.name
               namespace = var.namespace
             },
-            # {
-            #   name      = "traefik-forward-auth"
-            #   namespace = var.namespace
-            # },            
           ]
 
           services = [

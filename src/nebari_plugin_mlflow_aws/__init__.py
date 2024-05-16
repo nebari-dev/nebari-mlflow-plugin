@@ -223,15 +223,18 @@ class MlflowStage(NebariTerraformStage):
                 "overrides": self.config.mlflow.values,
             }
         elif self.config.provider == ProviderEnum.azure:
-            # Exception("Adam you need to implement this!")
             cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
             external_url = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
-            resource_group_name = stage_outputs["stages/02-infrastructure"]["resource_group_name"]["value"]        
+            resource_group_name = stage_outputs["stages/02-infrastructure"]["resource_group_name"]["value"]
+            forwardauth_service_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-service"]["value"]["name"]
+            forwardauth_middleware_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-middleware"]["value"]["name"]
 
             return {
                 "namespace": self.config.namespace,
                 "external_url": external_url,
-                # "forwardauth-service-name": "",
+                "helm-release-name": self.config.project_name + '-mlflow',
+                "forwardauth-service-name": forwardauth_service_name,
+                "forwardauth-middleware-name": forwardauth_middleware_name,
                 "cluster_oidc_issuer_url": cluster_oidc_issuer_url,
                 "storage_resource_group_name": resource_group_name,
                 "region": self.config.azure.region,
