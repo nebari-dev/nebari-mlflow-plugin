@@ -36,13 +36,6 @@ After installation, the MLflow extension is automatically configured to work wit
 
 For Azure, your app registration will need RBAC permissions in addition to the typical Contributor permissons.  We recommend you create a custom role scoped at the resource_group (usually named <project_name>-<namespace> where the values are what you set in nebari-config.yaml), and add the Microsoft.Authorization/roleAssignments/read, Microsoft.Authorization/roleAssignments/write, Microsoft.Authorization/roleAssignments/delete permissions.  Then create a role assignment of that role to the nebari app registration.
 
-#### Configuring MLFlow Kubernetes Namespace
-In order for MLflow to deploy into a non-default Kubernetes namespace, you may add an mlflow block to your Nebari configuration file such as the example below. Although MLflow resources should all be prefixed to avoid collisions, we still recommend this as a best practice.
-```yaml
-mlflow:
-  namespace: mlflow
-```
-
 #### Configuring MLflow Tracking URL
 You may set the `MLFLOW_TRACKING_URL` to configure mlflow in individual users' Nebari instances by adding or updating an additional block in your Nebari configuration file. Note that 'dev' in the URL below corresponds to the Kubernetes namespace where mlflow is deployed, so if you have assigned a custom namespace, that URL will need updating.
 ```yaml
