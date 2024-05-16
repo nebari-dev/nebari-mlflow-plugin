@@ -19,15 +19,15 @@ This MLflow extension currently only supports Azure Nebari deployments, but aims
 
 ### Installation
 Prerequisites:
-- Nebari must be deployed using the provider AWS
+- Nebari must be deployed using the Azure provider at the moment
 - Nebari version 2024.6.1 or later
 
 Installing the MLflow extension is as straightforward as installing a Python package. Run the following commands:
 
 ```bash
-git clone nebari-plugin-mlflow-aws
-cd nebari-plugin-mlflow-aws/
-pip install nebari-plugin-mlflow-aws
+git clone nebari-mlflow-plugin
+cd nebari-mlflow-plugin
+pip install nebari-mlflow-plugin
 ```
 This command installs the Python package and also creates the necessary infrastructure to run MLflow on the AI Platform.
 
