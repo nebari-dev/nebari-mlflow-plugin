@@ -1,7 +1,4 @@
-ARG MLFLOW_VERSION
+FROM bitnami/mlflow:2.12.1-debian-12-r0
 
-FROM ghcr.io/mlflow/mlflow:v${MLFLOW_VERSION}
-
-COPY requirements.txt .
-RUN pip install -r requirements.txt && \
-    rm requirements.txt
+# Install additional dependencies
+RUN python3 -m pip install --no-cache-dir azure-identity azure-storage-blob
