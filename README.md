@@ -1,10 +1,5 @@
 # Nebari Plugin MLflow AWS
 
-[![PyPI - Version](https://img.shields.io/pypi/v/nebari-plugin-mlflow-aws.svg)](https://pypi.org/project/nebari-plugin-mlflow-aws)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/nebari-plugin-mlflow-aws.svg)](https://pypi.org/project/nebari-plugin-mlflow-aws)
-
------
-
 **Table of Contents**
 
 - [Features](#features)
@@ -13,7 +8,7 @@
 - [License](#license)
 
 ## Introduction
-This MLflow extension is designed to integrate into Nebari deployments utilizing the AWS provider. It provides a robust, collaborative environment for AI/ML professionals to manage experiments, track metrics, and deploy models.
+This MLflow extension currently only supports Azure Nebari deployments, but aims to integrate into Nebari deployments utilizing the Azure, AWS, GCP, and DO providers. It provides a robust, collaborative environment for AI/ML professionals to manage experiments, track metrics, and deploy models.
 
 ### Features
 **Centralized Artifact Repository**: Store and manage all your metrics, parameters, and artifacts in a single location, accessible across the multi-tenant platform.
@@ -25,7 +20,7 @@ This MLflow extension is designed to integrate into Nebari deployments utilizing
 ### Installation
 Prerequisites:
 - Nebari must be deployed using the provider AWS
-- Nebari version 2023.10.1 or later
+- Nebari version 2024.6.1 or later
 
 Installing the MLflow extension is as straightforward as installing a Python package. Run the following commands:
 
@@ -58,13 +53,13 @@ ingress:
 ```
 
 #### Configuring MLflow Tracking URL
-You may set the `MLFLOW_TRACKING_URL` to configure mlflow in individual users' Nebari instances by adding or updating an additional block in your Nebari configuration file. Note that the first 'mlflow' in the URL below corresponds to the Kubernetes namespace where mlflow is deployed, so if you have assigned a custom namespace, that URL will need updating.
+You may set the `MLFLOW_TRACKING_URL` to configure mlflow in individual users' Nebari instances by adding or updating an additional block in your Nebari configuration file. Note that 'dev' in the URL below corresponds to the Kubernetes namespace where mlflow is deployed, so if you have assigned a custom namespace, that URL will need updating.
 ```yaml
 jupyterhub:
   overrides:
     singleuser:
       extraEnv:
-        MLFLOW_TRACKING_URI: "http://mlflow.mlflow:5000"
+        MLFLOW_TRACKING_URI: "http://mlflow-svc.dev.svc:5000"
 ```
 
 ### Usage
@@ -85,4 +80,4 @@ With the above code, your metrics and artifacts are automatically stored and acc
 
 ## License
 
-`nebari-plugin-mlflow-aws` is distributed under the terms of the [Apache](./LICENSE.md) license.
+`nebari-mlflow-plugin` is distributed under the terms of the [Apache](./LICENSE.md) license.
