@@ -15,20 +15,16 @@ TIMEOUT = 10
 
 CLIENT_NAME = "mlflow"
 
-
-class MlflowConfigBase(Base):
-    name: Optional[str] = "mlflow"
-    namespace: Optional[str] = None
-    values: Optional[Dict[str, Any]] = {}
-
 class MlflowConfigAWS(Base):
     enable_s3_encryption: Optional[bool] = True
 
 class MlflowConfigAzure(Base):
-    enabled: bool = False
-    blob_storage: Optional[bool] = True
+    ...
 
 class MlflowProvidersInputSchema(Base):
+    enabled: bool = True
+
+    # provder specific config
     aws: Optional[MlflowConfigAWS] = None
     azure: Optional[MlflowConfigAzure] = None
 
@@ -142,24 +138,6 @@ class MlflowStage(NebariTerraformStage):
             except KeyError:
                 print("\nBase config values not found: escaped_project_name, provider")
                 return False
-
-            # keycloak_config = self.get_keycloak_config(stage_outputs)
-
-            # if not self._attempt_keycloak_connection(
-            #     keycloak_url=keycloak_config["keycloak_url"],
-            #     username=keycloak_config["username"],
-            #     password=keycloak_config["password"],
-            #     master_realm_name=keycloak_config["master_realm_id"],
-            #     client_id=keycloak_config["master_client_id"],
-            #     client_realm_name=keycloak_config["realm_id"],
-            #     verify=False,
-            # ):
-            #     print(
-            #         f"ERROR: unable to connect to keycloak master realm and ensure that nebari client={CLIENT_NAME} exists"
-            #     )
-            #     sys.exit(1)
-
-            print(f"Keycloak successfully configured with {CLIENT_NAME} client")
         else:
             raise NotImplementedError(f"Provider {self.config.provider} not implemented")
 
@@ -230,6 +208,7 @@ class MlflowStage(NebariTerraformStage):
             forwardauth_middleware_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-middleware"]["value"]["name"]
 
             return {
+                "enabled": self.config.mlflow.enabled,
                 "namespace": self.config.namespace,
                 "external_url": external_url,
                 "helm-release-name": self.config.project_name + '-mlflow',

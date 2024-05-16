@@ -1,3 +1,7 @@
+variable "enabled" {
+  type = bool
+  description = "Whether to deploy MLflow on Azure"
+}
 variable "namespace" {
   type = string
 }
