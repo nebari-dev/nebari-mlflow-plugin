@@ -1,4 +1,4 @@
-# Nebari MLFlow Plugin
+# Nebari MLflow Plugin
 
 **Table of Contents**
 
