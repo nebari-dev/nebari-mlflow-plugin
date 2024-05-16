@@ -28,7 +28,7 @@ resource "helm_release" "mlflow" {
       },
       "tracking" = {
         "auth" = {
-          "enabled" = false  # TODO: enable this using forwardauth
+          "enabled" = false 
         },
         "extraArgs" = ["--artifacts-destination", "wasbs://${azurerm_storage_container.mlflow[count.index].name}@${azurerm_storage_account.mlflow[count.index].name}.blob.core.windows.net/"]
         "podLabels" = {
