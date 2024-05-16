@@ -20,7 +20,8 @@ resource "helm_release" "mlflow" {
     jsonencode({
       "namespaceOverride" = "dev",
       "image" = {
-        "repository" = "balast/mlflow",  # TODO: Change this to Quansight or Nebari image
+        "registry"   = "quay.io",
+        "repository" = "quansight/mlflow",
         "tag"        = "2.12.1-debian-12-r0-azure"
       },
       "run" = {
