@@ -18,7 +18,6 @@ resource "helm_release" "mlflow" {
     file("${path.module}/values.yaml"),
 
     jsonencode({
-      "namespaceOverride" = "dev",
       "image" = {
         "registry"   = "quay.io",
         "repository" = "quansight/mlflow",
