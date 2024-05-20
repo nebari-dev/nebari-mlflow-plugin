@@ -3,16 +3,15 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "nebari-plugin-mlflow-aws"
+name = "nebari-mlflow-plugin"
 dynamic = ["version"]
-description = 'MetroStar - MLFlow Plugin for AWS Nebari Platform'
+description = 'MLflow Plugin for Nebari Platform'
 readme = "README.md"
 requires-python = ">=3.7"
 license = "Apache-2.0"
 keywords = []
 authors = [
-  { name = "Scott Blair", email = "sblair@metrostar.com" },
-  { name = "Ken Foster", email = "kfoster@metrostar.com" },
+  { name = "Adam Lewis", email = "adam.dudley.lewis@gmail.com" },
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -31,9 +30,9 @@ dependencies = [
 
 [project.urls]
 # TODO - public location for issues and documentation?
-Documentation = "https://github.com/MetroStar/nebari-mlflow-aws#readme"
-Issues = "https://github.com/MetroStar/nebari-mlflow-aws/issues"
-Source = "https://github.com/MetroStar/nebari-mlflow-aws"
+Documentation = "https://github.com/Quansight/nebari-mlflow-plugin#readme"
+Issues = "https://github.com/Quansight/nebari-mlflow-plugin/issues"
+Source = "https://github.com/Quansight/nebari-mlflow-plugin"
 
 [tool.hatch.version]
 path = "src/nebari_plugin_mlflow_aws/__about__.py"
@@ -133,7 +132,7 @@ unfixable = [
 ]
 
 [tool.ruff.isort]
-known-first-party = ["nebari_plugin_mlflow_aws"]
+known-first-party = ["nebari_mlflow_plugin"]
 
 [tool.ruff.flake8-tidy-imports]
 ban-relative-imports = "all"
