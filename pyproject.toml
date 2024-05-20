@@ -35,7 +35,7 @@ Issues = "https://github.com/Quansight/nebari-mlflow-plugin/issues"
 Source = "https://github.com/Quansight/nebari-mlflow-plugin"
 
 [tool.hatch.version]
-path = "src/nebari_plugin_mlflow_aws/__about__.py"
+path = "src/nebari_mlflow_plugin/__about__.py"
 
 [tool.hatch.envs.default]
 dependencies = [
@@ -66,7 +66,7 @@ dependencies = [
   "ruff>=0.0.243",
 ]
 [tool.hatch.envs.lint.scripts]
-typing = "mypy --install-types --non-interactive {args:src/nebari_plugin_mlflow_aws tests}"
+typing = "mypy --install-types --non-interactive {args:src/nebari_mlflow_plugin tests}"
 style = [
   "ruff {args:.}",
   "black --check --diff {args:.}",
@@ -142,16 +142,16 @@ ban-relative-imports = "all"
 "tests/**/*" = ["PLR2004", "S101", "TID252"]
 
 [tool.coverage.run]
-source_pkgs = ["nebari_plugin_mlflow_aws", "tests"]
+source_pkgs = ["nebari_mlflow_plugin", "tests"]
 branch = true
 parallel = true
 omit = [
-  "src/nebari_plugin_mlflow_aws/__about__.py",
+  "src/nebari_mlflow_plugin/__about__.py",
 ]
 
 [tool.coverage.paths]
-nebari_plugin_mlflow_aws = ["src/nebari_plugin_mlflow_aws", "*/src/nebari_plugin_mlflow_aws"]
-tests = ["tests", "*/nebari_plugin_mlflow_aws/tests"]
+nebari_mlflow_plugin = ["src/nebari_mlflow_plugin", "*/src/nebari_mlflow_plugin"]
+tests = ["tests", "*/nebari_mlflow_plugin/tests"]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -161,4 +161,4 @@ exclude_lines = [
 ]
 
 [project.entry-points.nebari]
-nebari-plugin-mlflow-aws = "nebari_plugin_mlflow_aws"
+nebari-mlflow-plugin = "nebari_mlflow_plugin"
