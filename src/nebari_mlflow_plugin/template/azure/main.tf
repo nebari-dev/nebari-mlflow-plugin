@@ -39,8 +39,13 @@ resource "helm_release" "mlflow" {
           "name"   = local.mlflow-sa-name
           "annotations" = {
             "azure.workload.identity/client-id" = resource.azurerm_user_assigned_identity.mlflow[count.index].client_id
-          }
-
+          }        
+        },
+        "service" = {
+          "type" = "ClusterIP",
+          "ports" = {
+            "http" = 5000
+          } 
         }
       },
       "minio" = {
@@ -151,31 +156,6 @@ resource "kubernetes_manifest" "mlflow-add-slash" {
 }
 
 
-resource "kubernetes_manifest" "mlflow-svc" {
-  count = var.enabled ? 1 : 0
-  manifest = {
-    "apiVersion" = "v1"
-    "kind"       = "Service"
-    "metadata" = {
-      "name"      = "mlflow-svc"
-      "namespace" = var.namespace
-    }
-    "spec" = {
-      "ports" = [
-        {
-          "name"       = "mlflow-uis-port"
-          "port"       = 5000
-          "targetPort" = 5000
-        },
-      ]
-      "selector" = {
-        "app.kubernetes.io/component" = "tracking"
-        "app.kubernetes.io/instance" = var.helm-release-name
-      }
-    }
-  }
-}
-
 resource "kubernetes_manifest" "mlflow-ingressroute" {
   count = var.enabled ? 1 : 0
   manifest = {
@@ -210,7 +190,7 @@ resource "kubernetes_manifest" "mlflow-ingressroute" {
 
           services = [
             {
-              name = kubernetes_manifest.mlflow-svc[count.index].manifest.metadata.name
+              name = "${var.helm-release-name}-tracking"
               port = 5000
             }
           ]
