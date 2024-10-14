@@ -34,7 +34,7 @@ This command installs the Python package and also creates the necessary infrastr
 ### Configuration
 After installation, the MLflow extension is automatically configured to work with the AI Platform. To access the MLflow interface, navigate to <https://[your-nebari-domain]/mlflow>.
 
-For Azure, your app registration will need RBAC permissions in addition to the typical Contributor permissons.  We recommend you create a custom role scoped at the resource_group (usually named <project_name>-<namespace> where the values are what you set in nebari-config.yaml), and add the Microsoft.Authorization/roleAssignments/read, Microsoft.Authorization/roleAssignments/write, Microsoft.Authorization/roleAssignments/delete permissions.  Then create a role assignment of that role to the nebari app registration service principal.
+For Azure, your app registration will need RBAC permissions in addition to the typical Contributor permissons.  We recommend you create a custom role scoped at the resource_group (usually named \<project_name\>-\<namespace\> where the values are what you set in nebari-config.yaml), and add the Microsoft.Authorization/roleAssignments/read, Microsoft.Authorization/roleAssignments/write, Microsoft.Authorization/roleAssignments/delete permissions.  Then create a role assignment of that role to the nebari app registration service principal.
 
 #### Configuring MLflow Tracking URL
 You may set the `MLFLOW_TRACKING_URL` to configure mlflow in individual users' Nebari instances by adding or updating an additional block in your Nebari configuration file. Be sure to replace `{project_name}` and `{namespace}` with the values from your own nebari config file e.g. `http://mynebari-mlflow-tracking.dev.svc:5000`.
