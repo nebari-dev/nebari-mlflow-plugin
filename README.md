@@ -37,7 +37,7 @@ After installation, the MLflow extension is automatically configured to work wit
 For Azure, your app registration will need RBAC permissions in addition to the typical Contributor permissons.  We recommend you create a **custom role** scoped at the resource_group (usually named "\<project_name\>-\<namespace\>" where the values are what you set in nebari-config.yaml), and add the following permissions:
 - Microsoft.Authorization/roleAssignments/read
 - Microsoft.Authorization/roleAssignments/write
-- Microsoft.Authorization/roleAssignments/delete permissions.
+- Microsoft.Authorization/roleAssignments/delete
 
 Then create a **role assignment** of that role to the nebari app registration service principal.
 
