@@ -8,7 +8,7 @@
 - [License](#license)
 
 ## Introduction
-This MLflow extension supports Azure and GCP Nebari deployments, and eventually aims to integrate into Nebari deployments utilizing the AWS provider as well. It provides a robust, collaborative environment for AI/ML professionals to manage experiments, track metrics, and deploy models.
+This MLflow extension supports Azure and GCP Nebari deployments, and aims to integrate into Nebari deployments utilizing the AWS and DO providers as well. It provides a robust, collaborative environment for AI/ML professionals to manage experiments, track metrics, and deploy models.
 
 ### Features
 **Centralized Artifact Repository**: Store and manage all your metrics, parameters, and artifacts in a single location, accessible across the multi-tenant platform.
@@ -34,7 +34,12 @@ This command installs the Python package and also creates the necessary infrastr
 ### Configuration
 After installation, the MLflow extension is automatically configured to work with the AI Platform. To access the MLflow interface, navigate to <https://[your-nebari-domain]/mlflow>.
 
-**For Azure**, your app registration will need RBAC permissions in addition to the typical Contributor permissons.  We recommend you create a custom role scoped at the resource_group (usually named <project_name>-<namespace> where the values are what you set in nebari-config.yaml), and add the Microsoft.Authorization/roleAssignments/read, Microsoft.Authorization/roleAssignments/write, Microsoft.Authorization/roleAssignments/delete permissions.  Then create a role assignment of that role to the nebari app registration service principal.
+**For Azure**, your app registration will need RBAC permissions in addition to the typical Contributor permissons.  We recommend you create a **custom role** scoped at the resource_group (usually named "\<project_name\>-\<namespace\>" where the values are what you set in nebari-config.yaml), and add the following permissions:
+- Microsoft.Authorization/roleAssignments/read
+- Microsoft.Authorization/roleAssignments/write
+- Microsoft.Authorization/roleAssignments/delete
+
+Then create a **role assignment** of that role to the nebari app registration service principal.
 
 **For GCP**, your service account will need additional IAM permissions beyond the standard roles. The service account used for Nebari deployment requires the Service Account Admin role to manage workload identity bindings. 
 
@@ -56,14 +61,14 @@ Or via the GCP Console:
 This role includes the `iam.serviceAccounts.setIamPolicy` permission required for the MLflow plugin to create workload identity bindings.
 
 #### Configuring MLflow Tracking URL
-You may set the `MLFLOW_TRACKING_URL` to configure mlflow in individual users' Nebari instances by adding or updating an additional block in your Nebari configuration file. Be sure to replace `{project_name}` and `{namespace}` with the values from your own nebari config file e.g. `http://mynebari-dev-tracking.dev.svc:5000`.
+You may set the `MLFLOW_TRACKING_URL` to configure mlflow in individual users' Nebari instances by adding or updating an additional block in your Nebari configuration file. Be sure to replace `{project_name}` and `{namespace}` with the values from your own nebari config file e.g. `http://mynebari-mlflow-tracking.dev.svc:5000`.
 
 ```yaml
 jupyterhub:
   overrides:
     singleuser:
       extraEnv:
-        MLFLOW_TRACKING_URI: "http://{project_name}-{namespace}-tracking.{namespace}.svc:5000" 
+        MLFLOW_TRACKING_URI: "http://{project_name}-mlflow-tracking.{namespace}.svc:5000" 
 ```
 
 ### Usage
