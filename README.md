@@ -20,7 +20,7 @@ This MLflow extension supports Azure and GCP Nebari deployments, and eventually 
 ### Installation
 Prerequisites:
 - Nebari must be deployed using the Azure or GCP provider
-- Nebari version 2024.6.1 or later
+- Nebari version 2024.9.1 or later
 
 Installing the MLflow extension is as straightforward as installing a Python package. Run the following commands:
 
