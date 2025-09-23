@@ -21,12 +21,16 @@ class MlflowConfigAWS(Base):
 class MlflowConfigAzure(Base):
     ...
 
+class MlflowConfigGCP(Base):
+    ...
+
 class MlflowProvidersInputSchema(Base):
     enabled: bool = True
 
     # provder specific config
     aws: Optional[MlflowConfigAWS] = None
     azure: Optional[MlflowConfigAzure] = None
+    gcp: Optional[MlflowConfigGCP] = None
 
 class InputSchema(Base):
     mlflow: MlflowProvidersInputSchema
@@ -138,6 +142,21 @@ class MlflowStage(NebariTerraformStage):
             except KeyError:
                 print("\nBase config values not found: escaped_project_name, provider")
                 return False
+        elif self.config.provider == ProviderEnum.gcp:
+            try:
+                _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
+            except KeyError:
+                print(
+                    "\nPrerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url.  Please ensure Nebari version is at least XX."
+                )
+                return False
+
+            try:
+                _ = self.config.escaped_project_name
+                _ = self.config.provider
+            except KeyError:
+                print("\nBase config values not found: escaped_project_name, provider")
+                return False
         else:
             raise NotImplementedError(f"Provider {self.config.provider} not implemented")
 
@@ -218,6 +237,25 @@ class MlflowStage(NebariTerraformStage):
                 "storage_resource_group_name": resource_group_name,
                 "region": self.config.azure.region,
                 "storage_account_name": self.config.project_name[:15] + 'mlfsa' + self.config.azure.storage_account_postfix,
+            }
+        elif self.config.provider == ProviderEnum.gcp:
+            cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
+            external_url = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
+            project_id = stage_outputs["stages/02-infrastructure"]["project_id"]["value"]
+            forwardauth_service_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-service"]["value"]["name"]
+            forwardauth_middleware_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-middleware"]["value"]["name"]
+
+            return {
+                "enabled": self.config.mlflow.enabled,
+                "namespace": self.config.namespace,
+                "external_url": external_url,
+                "helm-release-name": self.config.project_name + '-mlflow',
+                "forwardauth-service-name": forwardauth_service_name,
+                "forwardauth-middleware-name": forwardauth_middleware_name,
+                "cluster_oidc_issuer_url": cluster_oidc_issuer_url,
+                "project_id": project_id,
+                "region": self.config.google_cloud_platform.region,
+                "bucket_name": f"{self.config.project_name}-mlflow-artifacts",
             }
         else:
             raise NotImplementedError(f"Provider {self.config.provider} not implemented")
