@@ -22,7 +22,7 @@ resource "helm_release" "mlflow" {
       "image" = {
         "registry"   = "quay.io",
         "repository" = "quansight/mlflow",
-        "tag"        = "2.12.1-debian-12-r0-gcp"
+        "tag"        = "2.12.1-debian-12-r0-azure"  # should be fine to use Azure for now, just has extra libraries
       },
       "run" = {
         enabled = false
@@ -51,7 +51,7 @@ resource "helm_release" "mlflow" {
       },
       "minio" = {
         "enabled" = false
-      }
+      },
     })
   ], 
   # var.overrides
