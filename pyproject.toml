@@ -24,7 +24,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "nebari",
+  "nebari>=2024.9.1",
 ]
 
 [project.urls]
