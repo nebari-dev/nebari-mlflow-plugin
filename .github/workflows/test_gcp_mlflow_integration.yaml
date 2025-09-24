@@ -73,9 +73,19 @@ jobs:
         run: |
           cat > nebari-config.yaml << EOF
           project_name: mlflow-test-gcp
+          namespace: dev
           provider: gcp
+          nebari_version: ${{ env.NEBARI_IMAGE_TAG }}
           ci_cd:
             type: github-actions
+            branch: main
+            commit_render: true
+            before_script: []
+            after_script: []
+          terraform_state:
+            type: remote
+            backend:
+            config: {}
           domain: example.com
           certificate:
             type: lets-encrypt
@@ -83,18 +93,263 @@ jobs:
           terraform_state:
             type: gcs
           google_cloud_platform:
+            region: us-central1
             project: ${{ secrets.GCP_PROJECT_ID }}
-            region: us-central1-a
-            availability_zones:
-              - us-central1-a
-            kubernetes_version: "1.27"
-          default_images:
-            jupyterhub: "quay.io/nebari/nebari-jupyterhub:${{ env.NEBARI_IMAGE_TAG }}"
-            jupyterlab: "quay.io/nebari/nebari-jupyterlab:${{ env.NEBARI_IMAGE_TAG }}"
-            dask_worker: "quay.io/nebari/nebari-dask-worker:${{ env.NEBARI_IMAGE_TAG }}"
+            kubernetes_version: 1.31.12-gke.1220000
+            availability_zones: []
+            release_channel: UNSPECIFIED
+            node_groups:
+              general:
+                instance: e2-standard-8
+                min_nodes: 1
+                max_nodes: 1
+                taints: []
+                preemptible: false
+                labels: {}
+                guest_accelerators: []
+              user:
+                instance: e2-standard-4
+                min_nodes: 0
+                max_nodes: 5
+                taints:
+                - key: dedicated
+                  value: nebari
+                  effect: NoSchedule
+                preemptible: false
+                labels: {}
+                guest_accelerators: []
+              worker:
+                instance: e2-standard-4
+                min_nodes: 0
+                max_nodes: 5
+                taints:
+                - key: dedicated
+                  value: nebari
+                  effect: NoSchedule
+                preemptible: false
+                labels: {}
+                guest_accelerators: []
+            tags: []
+            networking_mode: ROUTE
+            network: default
+            subnetwork:
+            ip_allocation_policy:
+            master_authorized_networks_config:
+            private_cluster_config:
+          amazon_web_services:
+          azure:
+          external_container_reg:
+            enabled: false
+            access_key_id:
+            secret_access_key:
+            extcr_account:
+            extcr_region:
+          # domain: ci-gcp.nebari.dev
+          certificate:
+            type: lets-encrypt
+            secret_name:
+            acme_email: internal-devops@quansight.com
+            acme_server: https://acme-v02.api.letsencrypt.org/directory
+            acme_challenge_type: tls
+          ingress:
+            terraform_overrides: {}
+          dns:
+            provider: cloudflare
+            auto_provision: true
           security:
             authentication:
               type: password
+            shared_users_group: true
+            keycloak:
+              initial_root_password: 48hk4pmv7hlix48x9uugb9s9i9kp7cs8
+              overrides: {}
+              realm_display_name: Nebari
+              themes:
+                enabled: false
+                repository: ''
+                branch: main
+          default_images:
+            jupyterhub: quay.io/nebari/nebari-jupyterhub:main
+            jupyterlab: quay.io/nebari/nebari-jupyterlab:main
+            dask_worker: quay.io/nebari/nebari-dask-worker:main
+          storage:
+            type: nfs
+            conda_store: 200Gi
+            shared_filesystem: 200Gi
+          theme:
+            jupyterhub:
+              hub_title: Nebari - pytestgcpfbrba
+              hub_subtitle: Your open source data science platform, hosted on Google Cloud Platform
+              welcome: Welcome! Learn about Nebari's features and configurations in <a href="https://www.nebari.dev/docs/welcome">the
+                documentation</a>. If you have any questions or feedback, reach the team on
+                <a href="https://www.nebari.dev/docs/community#getting-support">Nebari's support
+                forums</a>.
+              logo: 
+                https://raw.githubusercontent.com/nebari-dev/nebari-design/main/logo-mark/horizontal/Nebari-Logo-Horizontal-Lockup-White-text.svg
+              favicon: 
+                https://raw.githubusercontent.com/nebari-dev/nebari-design/main/symbol/favicon.ico
+              primary_color: '#4f4173'
+              primary_color_dark: '#4f4173'
+              secondary_color: '#957da6'
+              secondary_color_dark: '#957da6'
+              accent_color: '#32C574'
+              accent_color_dark: '#32C574'
+              text_color: '#111111'
+              h1_color: '#652e8e'
+              h2_color: '#652e8e'
+              version: v2025.4.1rc2.dev0+g62863be6.d20250408
+              navbar_color: '#1c1d26'
+              navbar_text_color: '#f1f1f6'
+              navbar_hover_color: '#db96f3'
+              display_version: 'True'
+          profiles:
+            jupyterlab:
+            - access: all
+              display_name: Small Instance
+              description: Stable environment with 2 cpu / 8 GB ram
+              default: true
+              users:
+              groups:
+              kubespawner_override:
+                cpu_limit: 2.0
+                cpu_guarantee: 1.5
+                mem_limit: 8G
+                mem_guarantee: 5G
+              profile_options: {}
+            - access: all
+              display_name: Medium Instance
+              description: Stable environment with 4 cpu / 16 GB ram
+              default: false
+              users:
+              groups:
+              kubespawner_override:
+                cpu_limit: 4.0
+                cpu_guarantee: 3.0
+                mem_limit: 16G
+                mem_guarantee: 10G
+              profile_options: {}
+            dask_worker:
+              Small Worker:
+                worker_cores_limit: 2.0
+                worker_cores: 1.5
+                worker_memory_limit: 8G
+                worker_memory: 5G
+                worker_threads: 2
+              Medium Worker:
+                worker_cores_limit: 4.0
+                worker_cores: 3.0
+                worker_memory_limit: 16G
+                worker_memory: 10G
+                worker_threads: 4
+          environments:
+            environment-dask.yaml:
+              name: dask
+              channels:
+              - conda-forge
+              dependencies:
+              - python==3.11.6
+              - ipykernel==6.26.0
+              - ipywidgets==8.1.1
+              - nebari-dask==2025.6.1
+              - python-graphviz==0.20.1
+              - pyarrow==14.0.1
+              - s3fs==2023.10.0
+              - gcsfs==2023.10.0
+              - numpy=1.26.0
+              - numba=0.58.1
+              - pandas=2.1.3
+              - xarray==2023.10.1
+            environment-dashboard.yaml:
+              name: dashboard
+              channels:
+              - conda-forge
+              dependencies:
+              - python==3.11.6
+              - cufflinks-py==0.17.3
+              - dash==2.14.1
+              - geopandas==0.14.1
+              - geopy==2.4.0
+              - geoviews==1.11.0
+              - gunicorn==21.2.0
+              - holoviews==1.18.1
+              - ipykernel==6.26.0
+              - ipywidgets==8.1.1
+              - jupyter==1.0.0
+              - jupyter_bokeh==3.0.7
+              - matplotlib==3.8.1
+              - nebari-dask==2025.6.1
+              - nodejs=20.8.1
+              - numpy==1.26.0
+              - openpyxl==3.1.2
+              - pandas==2.1.3
+              - panel==1.3.1
+              - param==2.0.1
+              - plotly==5.18.0
+              - python-graphviz==0.20.1
+              - rich==13.6.0
+              - streamlit==1.28.1
+              - sympy==1.12
+              - voila==0.5.5
+              - xarray==2023.10.1
+              - pip==23.3.1
+              - pip:
+                - streamlit-image-comparison==0.0.4
+                - noaa-coops==0.1.9
+                - dash_core_components==2.0.0
+                - dash_html_components==2.0.0
+          conda_store:
+            extra_settings: {}
+            extra_config: ''
+            image: quansight/conda-store-server
+            image_tag: 2025.2.2
+            default_namespace: nebari-git
+            object_storage: 200Gi
+          argo_workflows:
+            enabled: true
+            overrides: {}
+            nebari_workflow_controller:
+              enabled: true
+              image_tag: 2025.6.1
+          monitoring:
+            enabled: true
+            overrides:
+              loki: {}
+              promtail: {}
+              minio: {}
+            minio_enabled: true
+            healthchecks:
+              enabled: false
+              kuberhealthy_helm_version: '100'
+          telemetry:
+            jupyterlab_pioneer:
+              enabled: false
+              log_format:
+          jupyterhub:
+            overrides: {}
+          jupyterlab:
+            default_settings: {}
+            gallery_settings:
+              title: Examples
+              destination: examples
+              exhibits: []
+              hide_gallery_without_exhibits: true
+            idle_culler:
+              terminal_cull_inactive_timeout: 15
+              terminal_cull_interval: 5
+              kernel_cull_idle_timeout: 15
+              kernel_cull_interval: 5
+              kernel_cull_connected: true
+              kernel_cull_busy: false
+              server_shutdown_no_activity_timeout: 15
+            initial_repositories: []
+            preferred_dir:
+          jhub_apps:
+            enabled: false
+            overrides: {}
+          ceph:
+            storage_class_name:
+          helm_extensions: []
+          tf_extensions: []
           jupyterhub:
             overrides:
               singleuser:
