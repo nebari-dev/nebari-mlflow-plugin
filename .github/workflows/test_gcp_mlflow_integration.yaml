@@ -51,7 +51,7 @@ jobs:
           cd nebari
           pip install -e .[dev]
           cd ..
-          pip install .
+          # pip install .
           playwright install
 
       - name: 'Authenticate to GCP'
@@ -83,4 +83,5 @@ jobs:
           NEBARI_SECRET__default_images__dask_worker: "quay.io/nebari/nebari-dask-worker:${{ env.NEBARI_IMAGE_TAG }}"
           PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
-          NEBARI_SECRET__mlflow_enabled: true
+          # NEBARI_SECRET__mlflow: "{'enabled': 'true'}"
+          # NEBARI_SECRET__mlflow_enabled: true
