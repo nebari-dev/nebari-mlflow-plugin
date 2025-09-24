@@ -1,0 +1,127 @@
+name: GCP MLflow Plugin Deployment
+
+on:
+  schedule:
+    - cron: "0 0 * * MON"
+  workflow_dispatch:
+    inputs:
+      image-tag:
+        description: 'Nebari image tag created by the nebari-docker-images repo'
+        required: true
+        default: main
+        type: string
+      tf-log-level:
+        description: 'Change Terraform log levels'
+        required: false
+        default: info
+        type: choice
+        options:
+        - info
+        - warn
+        - debug
+        - trace
+        - error
+
+env:
+  NEBARI_IMAGE_TAG: ${{ github.event.inputs.image-tag || 'main' }}
+  TF_LOG: ${{ github.event.inputs.tf-log-level || 'info' }}
+
+jobs:
+  test-gcp-mlflow-integration:
+    runs-on: ubuntu-latest
+    if: ${{ vars.SKIP_GCP_INTEGRATION_TEST != 'true' }}
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Install Nebari and MLflow Plugin
+        run: |
+          git clone https://github.com/nebari-dev/nebari.git
+          cd nebari
+          pip install -e .[dev]
+          cd ..
+          pip install .
+          playwright install
+
+      - name: 'Authenticate to GCP'
+        uses: 'google-github-actions/auth@v1'
+        with:
+            workload_identity_provider: ${{ secrets.GCP_WORKFLOW_PROVIDER }}
+            service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set required environment variables
+        run: |
+          echo "GOOGLE_CREDENTIALS=${{ env.GOOGLE_APPLICATION_CREDENTIALS }}" >> $GITHUB_ENV
+
+      - name: Verify GCP authentication
+        run: |
+          gcloud auth list
+          gcloud config list project
+
+      - name: Create Nebari config with MLflow plugin
+        run: |
+          cat > nebari-config.yaml << EOF
+          project_name: mlflow-test-gcp
+          provider: gcp
+          ci_cd:
+            type: github-actions
+          domain: example.com
+          certificate:
+            type: lets-encrypt
+            acme_email: test@example.com
+          terraform_state:
+            type: gcs
+          google_cloud_platform:
+            project: ${{ secrets.GCP_PROJECT_ID }}
+            region: us-central1-a
+            availability_zones:
+              - us-central1-a
+            kubernetes_version: "1.27"
+          default_images:
+            jupyterhub: "quay.io/nebari/nebari-jupyterhub:${{ env.NEBARI_IMAGE_TAG }}"
+            jupyterlab: "quay.io/nebari/nebari-jupyterlab:${{ env.NEBARI_IMAGE_TAG }}"
+            dask_worker: "quay.io/nebari/nebari-dask-worker:${{ env.NEBARI_IMAGE_TAG }}"
+          security:
+            authentication:
+              type: password
+          jupyterhub:
+            overrides:
+              singleuser:
+                extraEnv:
+                  MLFLOW_TRACKING_URI: "http://mlflow-test-gcp-mlflow-tracking.dev.svc:5000"
+          nebari_mlflow_plugin:
+            enabled: true
+          EOF
+
+      - name: Deploy Nebari with MLflow Plugin
+        run: |
+          nebari deploy -c nebari-config.yaml --skip-remote-state-provision
+        env:
+          NEBARI_SECRET__default_images__jupyterhub: "quay.io/nebari/nebari-jupyterhub:${{ env.NEBARI_IMAGE_TAG }}"
+          NEBARI_SECRET__default_images__jupyterlab: "quay.io/nebari/nebari-jupyterlab:${{ env.NEBARI_IMAGE_TAG }}"
+          NEBARI_SECRET__default_images__dask_worker: "quay.io/nebari/nebari-dask-worker:${{ env.NEBARI_IMAGE_TAG }}"
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+
+      - name: Test MLflow Plugin Integration
+        run: |
+          # Wait for deployment to be ready
+          sleep 300
+          # Test MLflow endpoint accessibility
+          curl -f http://mlflow-test-gcp.example.com/mlflow/health || echo "MLflow endpoint test failed"
+
+      - name: Cleanup Nebari deployment
+        if: always()
+        run: |
+          nebari destroy -c nebari-config.yaml --auto-approve

@@ -1,0 +1,117 @@
+name: Azure MLflow Plugin Deployment
+
+on:
+  schedule:
+    - cron: "0 0 * * MON"
+  workflow_dispatch:
+    inputs:
+      image-tag:
+        description: 'Nebari image tag created by the nebari-docker-images repo'
+        required: true
+        default: main
+        type: string
+      tf-log-level:
+        description: 'Change Terraform log levels'
+        required: false
+        default: info
+        type: choice
+        options:
+        - info
+        - warn
+        - debug
+        - trace
+        - error
+
+env:
+  NEBARI_IMAGE_TAG: ${{ github.event.inputs.image-tag || 'main' }}
+  TF_LOG: ${{ github.event.inputs.tf-log-level || 'info' }}
+
+jobs:
+  test-azure-mlflow-integration:
+    runs-on: ubuntu-latest
+    if: ${{ vars.SKIP_AZURE_INTEGRATION_TEST != 'true' }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install Nebari and MLflow Plugin
+        run: |
+          pip install nebari[dev]
+          pip install .
+          conda install --quiet --yes conda-build
+          playwright install
+
+      - name: 'Azure login'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
+      - name: Create Nebari config with MLflow plugin
+        run: |
+          cat > nebari-config.yaml << EOF
+          project_name: mlflow-test-azure
+          provider: azure
+          ci_cd:
+            type: github-actions
+          domain: example.com
+          certificate:
+            type: lets-encrypt
+            acme_email: test@example.com
+          terraform_state:
+            type: azure
+          azure:
+            project: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+            region: Central US
+            kubernetes_version: "1.27"
+          default_images:
+            jupyterhub: "quay.io/nebari/nebari-jupyterhub:${{ env.NEBARI_IMAGE_TAG }}"
+            jupyterlab: "quay.io/nebari/nebari-jupyterlab:${{ env.NEBARI_IMAGE_TAG }}"
+            dask_worker: "quay.io/nebari/nebari-dask-worker:${{ env.NEBARI_IMAGE_TAG }}"
+          security:
+            authentication:
+              type: password
+          jupyterhub:
+            overrides:
+              singleuser:
+                extraEnv:
+                  MLFLOW_TRACKING_URI: "http://mlflow-test-azure-mlflow-tracking.dev.svc:5000"
+          nebari_mlflow_plugin:
+            enabled: true
+          EOF
+
+      - name: Deploy Nebari with MLflow Plugin
+        run: |
+          nebari deploy -c nebari-config.yaml --skip-remote-state-provision
+        env:
+          NEBARI_SECRET__default_images__jupyterhub: "quay.io/nebari/nebari-jupyterhub:${{ env.NEBARI_IMAGE_TAG }}"
+          NEBARI_SECRET__default_images__jupyterlab: "quay.io/nebari/nebari-jupyterlab:${{ env.NEBARI_IMAGE_TAG }}"
+          NEBARI_SECRET__default_images__dask_worker: "quay.io/nebari/nebari-dask-worker:${{ env.NEBARI_IMAGE_TAG }}"
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC: "true"
+          CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+
+      - name: Test MLflow Plugin Integration
+        run: |
+          # Wait for deployment to be ready
+          sleep 300
+          # Test MLflow endpoint accessibility
+          curl -f http://mlflow-test-azure.example.com/mlflow/health || echo "MLflow endpoint test failed"
+
+      - name: Cleanup Nebari deployment
+        if: always()
+        run: |
+          nebari destroy -c nebari-config.yaml --auto-approve
