@@ -47,7 +47,10 @@ jobs:
 
       - name: Install Nebari and MLflow Plugin
         run: |
-          pip install nebari[dev]
+          git clone https://github.com/nebari-dev/nebari.git
+          cd nebari
+          pip install -e .[dev]
+          cd ..
           pip install .
           playwright install
 
@@ -60,6 +63,11 @@ jobs:
       - name: Set required environment variables
         run: |
           echo "GOOGLE_CREDENTIALS=${{ env.GOOGLE_APPLICATION_CREDENTIALS }}" >> $GITHUB_ENV
+
+      - name: Verify GCP authentication
+        run: |
+          gcloud auth list
+          gcloud config list project
 
       - name: Create Nebari config with MLflow plugin
         run: |
