@@ -20,9 +20,9 @@ resource "helm_release" "mlflow" {
 
     jsonencode({
       "image" = {
-        "registry"   = "quay.io",
-        "repository" = "quansight/mlflow",
-        "tag"        = "2.12.1-debian-12-r0-azure"  # should be fine to use Azure for now, just has extra libraries
+        "registry"   = "docker.io",
+        "repository" = "bitnamilegacy/mlflow",
+        "tag"        = "2.14.1-debian-12-r5"
       },
       "run" = {
         enabled = false
