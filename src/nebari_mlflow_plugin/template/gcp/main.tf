@@ -63,7 +63,7 @@ resource "helm_release" "mlflow" {
           tag        = "16.6.0-debian-12-r2"
         }
       }
-    volumePermissions = {
+    waitContainer = {
       # TODO: Remove hardcoded image values after Helm chart update
       # This is a workaround due to bitnami charts deprecation
       # See: https://github.com/bitnami/charts/issues/35164
