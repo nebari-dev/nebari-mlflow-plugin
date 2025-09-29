@@ -60,9 +60,20 @@ resource "helm_release" "mlflow" {
         image = {
           registry   = "docker.io"
           repository = "bitnamilegacy/postgresql"
-          tag        = "11.14.0"
+          tag        = "16.6.0-debian-12-r2"
         }
       }
+    volumePermissions = {
+      # TODO: Remove hardcoded image values after Helm chart update
+      # This is a workaround due to bitnami charts deprecation
+      # See: https://github.com/bitnami/charts/issues/35164
+      # See: https://github.com/nebari-dev/nebari/issues/3120
+      image = {
+        registry = "docker.io"
+        repository = "bitnamilegacy/os-shell"
+        tag = "12-debian-12-r20"
+      }
+    }
     })
   ], 
   # var.overrides
