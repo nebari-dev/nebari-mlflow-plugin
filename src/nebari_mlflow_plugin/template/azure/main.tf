@@ -50,6 +50,14 @@ resource "helm_release" "mlflow" {
       },
       "minio" = {
         "enabled" = false
+      },
+      postgresql = {
+        # Preserve database credentials unless force_destroy_db_creds is true
+        # When force_destroy_db_creds is false, the secret will be preserved
+        # and reused on subsequent deployments
+        auth = {
+          existingSecret = var.force_destroy_db_creds ? "" : "${var.helm-release-name}-postgresql"
+        }
       }
     })
   ], 
@@ -72,6 +80,11 @@ resource "azurerm_storage_account" "mlflow" {
   location                 = var.region
   account_tier             = "Standard"
   account_replication_type = "LRS"
+
+  # Prevent accidental deletion of the storage account unless force_destroy_storage is true
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_storage_container" "mlflow" {

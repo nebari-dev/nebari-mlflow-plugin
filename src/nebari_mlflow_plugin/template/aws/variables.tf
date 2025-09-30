@@ -82,3 +82,18 @@ variable "cluster_oidc_issuer_url" {
   description = "The URL on the EKS cluster for the OpenID Connect identity provider"
   type        = string
 }
+
+# RESOURCE MANAGEMENT SETTINGS
+# -----------------
+
+variable "force_destroy_storage" {
+  description = "Whether to destroy storage bucket when MLflow is disabled"
+  type        = bool
+  default     = false
+}
+
+variable "force_destroy_db_creds" {
+  description = "Whether to destroy database credentials when MLflow is disabled"
+  type        = bool
+  default     = false
+}

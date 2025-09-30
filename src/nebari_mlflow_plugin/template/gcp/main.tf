@@ -62,6 +62,12 @@ resource "helm_release" "mlflow" {
           repository = "bitnamilegacy/postgresql"
           tag        = "16.6.0-debian-12-r2"
         }
+        # Preserve database credentials unless force_destroy_db_creds is true
+        # When force_destroy_db_creds is false, the secret will be preserved
+        # and reused on subsequent deployments
+        auth = {
+          existingSecret = var.force_destroy_db_creds ? "" : "${var.helm-release-name}-postgresql"
+        }
       }
     waitContainer = {
       # TODO: Remove hardcoded image values after Helm chart update
@@ -92,12 +98,17 @@ resource "google_storage_bucket" "mlflow" {
 
   name          = var.bucket_name
   location      = var.region
-  force_destroy = false
+  force_destroy = var.force_destroy_storage
 
   uniform_bucket_level_access = true
 
   versioning {
     enabled = true
+  }
+
+  # Prevent accidental deletion of the bucket unless force_destroy_storage is true
+  lifecycle {
+    prevent_destroy = true
   }
 }
 

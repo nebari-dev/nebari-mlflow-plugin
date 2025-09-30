@@ -12,6 +12,17 @@ resource "kubernetes_namespace" "this" {
 resource "random_password" "mlflow_postgres" {
   length  = 32
   special = false
+
+  # Prevent accidental deletion of the password unless force_destroy_db_creds is true
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = var.force_destroy_db_creds ? [] : [result]
+  }
+
+  # Use a keepers block to force regeneration only when explicitly requested
+  keepers = var.force_destroy_db_creds ? {
+    force_regenerate = timestamp()
+  } : {}
 }
 
 resource "helm_release" "mlflow" {
