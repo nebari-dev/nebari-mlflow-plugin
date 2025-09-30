@@ -24,6 +24,14 @@ resource "aws_s3_bucket" "artifact_storage" {
   versioning {
     enabled = true
   }
+
+  # Prevent accidental deletion of the bucket unless force_destroy_storage is true
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  # Allow Terraform to destroy bucket and all objects when force_destroy_storage is true
+  force_destroy = var.force_destroy_storage
 }
 
 # If enable_s3_encryption is true, create a key and apply Server Side Encryption to S3 bucket
@@ -116,4 +124,5 @@ module "mlflow" {
   s3_bucket_name         = aws_s3_bucket.artifact_storage.id
   keycloak_config        = module.keycloak.config
   overrides              = var.overrides
+  force_destroy_db_creds = var.force_destroy_db_creds
 }

@@ -40,3 +40,9 @@ variable "overrides" {
   type    = any
   default = {}
 }
+
+variable "force_destroy_db_creds" {
+  description = "Whether to destroy database credentials when MLflow is disabled"
+  type        = bool
+  default     = false
+}

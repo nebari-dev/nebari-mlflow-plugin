@@ -43,3 +43,15 @@ variable "region" {
   description = "GCP region"
   type        = string
 }
+
+variable "force_destroy_storage" {
+  description = "Whether to destroy storage bucket when MLflow is disabled"
+  type        = bool
+  default     = false
+}
+
+variable "force_destroy_db_creds" {
+  description = "Whether to destroy database credentials when MLflow is disabled"
+  type        = bool
+  default     = false
+}

@@ -26,6 +26,8 @@ class MlflowConfigGCP(Base):
 
 class MlflowProvidersInputSchema(Base):
     enabled: bool = True
+    force_destroy_storage: bool = False  # defaults to False to prevent data loss
+    force_destroy_db_creds: bool = False  # defaults to False to prevent credential loss
 
     # provder specific config
     aws: Optional[MlflowConfigAWS] = None
@@ -218,6 +220,8 @@ class MlflowStage(NebariTerraformStage):
                 "ingress_host": domain,
                 "cluster_oidc_issuer_url": cluster_oidc_issuer_url,
                 "overrides": self.config.mlflow.values,
+                "force_destroy_storage": self.config.mlflow.force_destroy_storage,
+                "force_destroy_db_creds": self.config.mlflow.force_destroy_db_creds,
             }
         elif self.config.provider == ProviderEnum.azure:
             cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
@@ -237,6 +241,8 @@ class MlflowStage(NebariTerraformStage):
                 "storage_resource_group_name": resource_group_name,
                 "region": self.config.azure.region,
                 "storage_account_name": self.config.project_name[:15] + 'mlfsa' + self.config.azure.storage_account_postfix,
+                "force_destroy_storage": self.config.mlflow.force_destroy_storage,
+                "force_destroy_db_creds": self.config.mlflow.force_destroy_db_creds,
             }
         elif self.config.provider == ProviderEnum.gcp:
             cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
@@ -256,6 +262,8 @@ class MlflowStage(NebariTerraformStage):
                 "project_id": project_id,
                 "region": self.config.google_cloud_platform.region,
                 "bucket_name": f"{self.config.project_name}-mlflow-artifacts",
+                "force_destroy_storage": self.config.mlflow.force_destroy_storage,
+                "force_destroy_db_creds": self.config.mlflow.force_destroy_db_creds,
             }
         else:
             raise NotImplementedError(f"Provider {self.config.provider} not implemented")
