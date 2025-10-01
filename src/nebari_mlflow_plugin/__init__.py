@@ -26,6 +26,7 @@ class MlflowConfigGCP(Base):
 
 class MlflowProvidersInputSchema(Base):
     enabled: bool = True
+    overrides: Optional[Dict[str, Any]] = {}
 
     # provder specific config
     aws: Optional[MlflowConfigAWS] = None
@@ -237,6 +238,7 @@ class MlflowStage(NebariTerraformStage):
                 "storage_resource_group_name": resource_group_name,
                 "region": self.config.azure.region,
                 "storage_account_name": self.config.project_name[:15] + 'mlfsa' + self.config.azure.storage_account_postfix,
+                "overrides": self.config.mlflow.overrides,
             }
         elif self.config.provider == ProviderEnum.gcp:
             cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
@@ -256,6 +258,7 @@ class MlflowStage(NebariTerraformStage):
                 "project_id": project_id,
                 "region": self.config.google_cloud_platform.region,
                 "bucket_name": f"{self.config.project_name}-mlflow-artifacts",
+                "overrides": self.config.mlflow.overrides,
             }
         else:
             raise NotImplementedError(f"Provider {self.config.provider} not implemented")

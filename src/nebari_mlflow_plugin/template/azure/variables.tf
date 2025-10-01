@@ -40,3 +40,9 @@ variable "storage_account_name" {
 variable "region" {
   type = string
 }
+
+variable "overrides" {
+  type    = any
+  default = {}
+  description = "Helm chart value overrides"
+}

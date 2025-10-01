@@ -79,7 +79,7 @@ resource "helm_release" "mlflow" {
     }
     })
   ], 
-  # var.overrides
+  var.overrides
   )
 }
 

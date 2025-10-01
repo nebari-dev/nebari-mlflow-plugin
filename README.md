@@ -71,6 +71,21 @@ jupyterhub:
         MLFLOW_TRACKING_URI: "http://{project_name}-mlflow-tracking.{namespace}.svc:5000" 
 ```
 
+#### Helm Chart Overrides
+You can pass custom Helm chart values to override the default MLflow configuration. This is useful for enabling specific features like the MLflow run server or customizing resource limits. The overrides are specified in your Nebari configuration file under the `mlflow` section.
+
+```yaml
+mlflow:
+  enabled: true
+  overrides:
+    tracking:
+      resources:
+        limits:
+          memory: "4Gi"
+          cpu: "2"
+    # ... additional overrides
+```
+
 ### Usage
 Getting started with the MLflow extension is incredibly simple. To track an experiment:
 
