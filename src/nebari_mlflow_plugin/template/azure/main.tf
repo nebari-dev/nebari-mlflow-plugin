@@ -10,7 +10,7 @@ resource "helm_release" "mlflow" {
   count = var.enabled ? 1 : 0
   name       = var.helm-release-name
   namespace  = var.namespace
-  repository = "https://charts.bitnami.com/bitnami"
+  repository = "oci://registry-1.docker.io/bitnamicharts"
   chart      = "mlflow"
   version    = "5.1.17"
 
