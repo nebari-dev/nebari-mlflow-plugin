@@ -33,6 +33,7 @@ class MlflowProvidersInputSchema(Base):
     aws: Optional[MlflowConfigAWS] = None
     azure: Optional[MlflowConfigAzure] = None
     gcp: Optional[MlflowConfigGCP] = None
+    local: Optional[MlflowConfigLocal] = None
 
 class InputSchema(Base):
     mlflow: MlflowProvidersInputSchema
@@ -159,6 +160,9 @@ class MlflowStage(NebariTerraformStage):
             except KeyError:
                 print("\nBase config values not found: escaped_project_name, provider")
                 return False
+        elif self.config.provider == ProviderEnum.local:
+            # Local deployments don't require OIDC issuer URLs
+            pass
         else:
             raise NotImplementedError(f"Provider {self.config.provider} not implemented")
 
@@ -259,6 +263,23 @@ class MlflowStage(NebariTerraformStage):
                 "project_id": project_id,
                 "region": self.config.google_cloud_platform.region,
                 "bucket_name": f"{self.config.project_name}-mlflow-artifacts",
+                "overrides": [json.dumps(self.config.mlflow.overrides)],
+            }
+        elif self.config.provider == ProviderEnum.local:
+            external_url = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
+            forwardauth_service_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-service"]["value"]["name"]
+            forwardauth_middleware_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-middleware"]["value"]["name"]
+
+            minio_password = self.config.mlflow.local.minio_root_password if self.config.mlflow.local else "minio-secret-password"
+
+            return {
+                "enabled": self.config.mlflow.enabled,
+                "namespace": self.config.namespace,
+                "external_url": external_url,
+                "helm-release-name": self.config.project_name + '-mlflow',
+                "forwardauth-service-name": forwardauth_service_name,
+                "forwardauth-middleware-name": forwardauth_middleware_name,
+                "minio_root_password": minio_password,
                 "overrides": [json.dumps(self.config.mlflow.overrides)],
             }
         else:
