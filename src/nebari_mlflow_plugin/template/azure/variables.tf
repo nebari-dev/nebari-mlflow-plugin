@@ -42,7 +42,7 @@ variable "region" {
 }
 
 variable "overrides" {
-  type    = any
-  default = {}
+  type        = list(string)
+  default     = []
   description = "Helm chart value overrides"
 }
