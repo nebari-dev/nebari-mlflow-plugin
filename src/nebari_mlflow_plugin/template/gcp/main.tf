@@ -13,7 +13,7 @@ resource "helm_release" "mlflow" {
   namespace  = var.namespace
   repository = "https://charts.bitnami.com/bitnami"
   chart      = "mlflow"
-  version    = "1.0.5"
+  version    = "5.1.17"
 
   values = concat([
     file("${path.module}/values.yaml"),
@@ -22,16 +22,15 @@ resource "helm_release" "mlflow" {
       "image" = {
         "registry"   = "docker.io",
         "repository" = "bitnamilegacy/mlflow",
-        "tag"        = "2.14.1-debian-12-r5"
+        "tag"        = "3.3.2-debian-12-r0"
       },
       "run" = {
         enabled = false
       },
       "tracking" = {
         "auth" = {
-          "enabled" = false 
+          "enabled" = false
         },
-        "extraArgs" = ["--artifacts-destination", "gs://${google_storage_bucket.mlflow[count.index].name}/"]
         "podLabels" = {
           "gke.io/gke-workload-identity" = "true"
         },
@@ -51,6 +50,11 @@ resource "helm_release" "mlflow" {
       },
       "minio" = {
         "enabled" = false
+      },
+      "externalGCS" = {
+        "bucket" = google_storage_bucket.mlflow[count.index].name
+        "googleCloudProject" = var.project_id
+        "serveArtifacts" = true
       },
       postgresql = {
         # TODO: Remove hardcoded image values after Helm chart update
