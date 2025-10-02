@@ -10,27 +10,15 @@ resource "helm_release" "mlflow" {
   count = var.enabled ? 1 : 0
   name       = var.helm-release-name
   namespace  = var.namespace
-  repository = "https://charts.bitnami.com/bitnami"
+  repository = "oci://registry-1.docker.io/bitnamicharts"
   chart      = "mlflow"
-  version    = "1.0.5"
+  version    = "5.1.17"
 
   values = concat([
+    file("${path.module}/shared_helm_values.yaml"),
     file("${path.module}/values.yaml"),
-
     jsonencode({
-      "image" = {
-        "registry"   = "quay.io",
-        "repository" = "quansight/mlflow",
-        "tag"        = "2.12.1-debian-12-r0-azure"
-      },
-      "run" = {
-        enabled = false
-      },
       "tracking" = {
-        "auth" = {
-          "enabled" = false 
-        },
-        "extraArgs" = ["--artifacts-destination", "wasbs://${azurerm_storage_container.mlflow[count.index].name}@${azurerm_storage_account.mlflow[count.index].name}.blob.core.windows.net/"]
         "podLabels" = {
           "azure.workload.identity/use" = "true"
         },
@@ -39,21 +27,20 @@ resource "helm_release" "mlflow" {
           "name"   = local.mlflow-sa-name
           "annotations" = {
             "azure.workload.identity/client-id" = resource.azurerm_user_assigned_identity.mlflow[count.index].client_id
-          }        
-        },
-        "service" = {
-          "type" = "ClusterIP",
-          "ports" = {
-            "http" = 5000
-          } 
+          }
         }
       },
       "minio" = {
         "enabled" = false
+      },
+      "externalAzureBlob" = {
+        "storageAccount" = azurerm_storage_account.mlflow[count.index].name
+        "containerName" = azurerm_storage_container.mlflow[count.index].name
+        "serveArtifacts" = true
       }
     })
-  ], 
-  # var.overrides
+  ],
+  var.overrides
   )
 }
 

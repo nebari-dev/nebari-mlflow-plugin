@@ -8,7 +8,7 @@
 - [License](#license)
 
 ## Introduction
-This MLflow extension supports Azure and GCP Nebari deployments, and aims to integrate into Nebari deployments utilizing the AWS and DO providers as well. It provides a robust, collaborative environment for AI/ML professionals to manage experiments, track metrics, and deploy models.
+This MLflow extension supports "Azure", "GCP", and "local" Nebari deployments, and aims to eventually support Nebari deployments on "AWS" and "existing" k8s clusters as well. It provides a robust, collaborative environment for AI/ML professionals to manage experiments, track metrics, and deploy models.
 
 ### Features
 **Centralized Artifact Repository**: Store and manage all your metrics, parameters, and artifacts in a single location, accessible across the multi-tenant platform.
@@ -19,8 +19,8 @@ This MLflow extension supports Azure and GCP Nebari deployments, and aims to int
 
 ### Installation
 Prerequisites:
-- Nebari must be deployed using the Azure or GCP provider
-- Nebari version 2024.9.1 or later
+- Nebari must be deployed using the Azure, GCP, or local provider
+- Nebari version 2024.10.1 or later
 
 Installing the MLflow extension is as straightforward as installing a Python package. Run the following commands:
 
@@ -69,6 +69,21 @@ jupyterhub:
     singleuser:
       extraEnv:
         MLFLOW_TRACKING_URI: "http://{project_name}-mlflow-tracking.{namespace}.svc:5000" 
+```
+
+#### Helm Chart Overrides
+You can pass custom Helm chart values to override the default MLflow configuration. This is useful for enabling specific features like the MLflow run server or customizing resource limits. The overrides are specified in your Nebari configuration file under the `mlflow` section.
+
+```yaml
+mlflow:
+  enabled: true
+  overrides:
+    tracking:
+      resources:
+        limits:
+          memory: "4Gi"
+          cpu: "2"
+    # ... additional overrides
 ```
 
 ### Usage

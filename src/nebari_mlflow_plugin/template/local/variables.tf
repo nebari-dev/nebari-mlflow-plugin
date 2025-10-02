@@ -1,6 +1,6 @@
 variable "enabled" {
   type = bool
-  description = "Whether to deploy MLflow on GCP"
+  description = "Whether to deploy MLflow locally"
 }
 
 variable "namespace" {
@@ -24,24 +24,10 @@ variable "forwardauth-middleware-name" {
   type = string
 }
 
-variable "cluster_oidc_issuer_url" {
-  description = "The URL on the GKE cluster for the OpenID Connect identity provider"
+variable "minio_root_password" {
+  description = "MinIO root password for artifact storage"
   type        = string
-}
-
-variable "project_id" {
-  description = "GCP Project ID"
-  type        = string
-}
-
-variable "bucket_name" {
-  description = "GCS bucket name for MLflow artifacts"
-  type        = string
-}
-
-variable "region" {
-  description = "GCP region"
-  type        = string
+  sensitive   = true
 }
 
 variable "overrides" {
