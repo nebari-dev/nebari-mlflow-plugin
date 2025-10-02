@@ -1,10 +1,5 @@
-provider "google" {
-  project = var.project_id
-  region  = var.region
-}
-
 locals {
-  mlflow-sa-name = "nebari-mlflow"
+  mlflow-prefix = "mlflow"
 }
 
 resource "helm_release" "mlflow" {
@@ -19,86 +14,33 @@ resource "helm_release" "mlflow" {
     file("${path.module}/shared_helm_values.yaml"),
     file("${path.module}/values.yaml"),
     jsonencode({
-      "tracking" = {
-        "podLabels" = {
-          "gke.io/gke-workload-identity" = "true"
-        },
-        "serviceAccount" = {
-          "create" = true,
-          "name"   = local.mlflow-sa-name
-          "annotations" = {
-            "iam.gke.io/gcp-service-account" = google_service_account.mlflow[count.index].email
+      "minio" = {
+        "enabled" = true
+        "image" = {
+          "registry" = "docker.io"
+          "repository" = "bitnamilegacy/minio"
+          "tag" = "2025.7.23-debian-12-r3"
+        }
+        "auth" = {
+          "rootUser" = "minio"
+          "rootPassword" = var.minio_root_password
+        }
+        "defaultBuckets" = "mlflow"
+        "defaultInitContainers" = {
+          "volumePermissions" = {
+            "image" = {
+              "registry" = "docker.io"
+              "repository" = "bitnamilegacy/os-shell"
+              "tag" = "12-debian-12-r51"
+            }
           }
         }
-      },
-      "minio" = {
-        "enabled" = false
-      },
-      "externalGCS" = {
-        "bucket" = google_storage_bucket.mlflow[count.index].name
-        "googleCloudProject" = var.project_id
-        "serveArtifacts" = true
       }
     })
   ],
   var.overrides
   )
 }
-
-
-locals {
-  mlflow-prefix = "mlflow"
-}
-
-# Cloud Storage =====================================================================
-
-resource "google_storage_bucket" "mlflow" {
-  count = var.enabled ? 1 : 0
-
-  name          = var.bucket_name
-  location      = var.region
-  force_destroy = false
-
-  uniform_bucket_level_access = true
-
-  versioning {
-    enabled = true
-  }
-}
-
-# Service Account for Workload Identity
-resource "google_service_account" "mlflow" {
-  count = var.enabled ? 1 : 0
-
-  account_id   = "mlflow-storage-sa"
-  display_name = "MLflow Storage Service Account"
-  description  = "Service account for MLflow to access Cloud Storage"
-}
-
-# IAM binding for Cloud Storage access
-resource "google_storage_bucket_iam_binding" "mlflow" {
-  count = var.enabled ? 1 : 0
-
-  bucket = google_storage_bucket.mlflow[count.index].name
-  role   = "roles/storage.objectAdmin"
-
-  members = [
-    "serviceAccount:${google_service_account.mlflow[count.index].email}",
-  ]
-}
-
-# Workload Identity binding
-resource "google_service_account_iam_binding" "workload_identity" {
-  count = var.enabled ? 1 : 0
-
-  service_account_id = google_service_account.mlflow[count.index].name
-  role               = "roles/iam.workloadIdentityUser"
-
-  members = [
-    "serviceAccount:${var.project_id}.svc.id.goog[${var.namespace}/${local.mlflow-sa-name}]",
-  ]
-}
-
 
 # Routing =====================================================================
 resource "kubernetes_manifest" "mlflow-middleware-stripprefix" {
@@ -161,7 +103,7 @@ resource "kubernetes_manifest" "mlflow-ingressroute" {
             {
               name      = var.forwardauth-middleware-name
               namespace = var.namespace
-            },            
+            },
 
             {
               name      = kubernetes_manifest.mlflow-add-slash[count.index].manifest.metadata.name

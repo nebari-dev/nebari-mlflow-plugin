@@ -25,6 +25,9 @@ class MlflowConfigAzure(Base):
 class MlflowConfigGCP(Base):
     ...
 
+class MlflowConfigLocal(Base):
+    minio_root_password: str = "minio-secret-password"
+
 class MlflowProvidersInputSchema(Base):
     enabled: bool = True
     overrides: Optional[Dict[str, Any]] = {}

@@ -15,21 +15,10 @@ resource "helm_release" "mlflow" {
   version    = "5.1.17"
 
   values = concat([
+    file("${path.module}/shared_helm_values.yaml"),
     file("${path.module}/values.yaml"),
-
     jsonencode({
-      "image" = {
-        "registry"   = "docker.io",
-        "repository" = "bitnamilegacy/mlflow",
-        "tag"        = "3.3.2-debian-12-r0"
-      },
-      "run" = {
-        enabled = false
-      },
       "tracking" = {
-        "auth" = {
-          "enabled" = false
-        },
         "podLabels" = {
           "azure.workload.identity/use" = "true"
         },
@@ -38,12 +27,6 @@ resource "helm_release" "mlflow" {
           "name"   = local.mlflow-sa-name
           "annotations" = {
             "azure.workload.identity/client-id" = resource.azurerm_user_assigned_identity.mlflow[count.index].client_id
-          }
-        },
-        "service" = {
-          "type" = "ClusterIP",
-          "ports" = {
-            "http" = 5000
           }
         }
       },
@@ -54,31 +37,9 @@ resource "helm_release" "mlflow" {
         "storageAccount" = azurerm_storage_account.mlflow[count.index].name
         "containerName" = azurerm_storage_container.mlflow[count.index].name
         "serveArtifacts" = true
-      },
-      postgresql = {
-        # TODO: Remove hardcoded image values after Helm chart update
-        # This is a workaround due to bitnami charts deprecation
-        # See: https://github.com/bitnami/charts/issues/35164
-        # See: https://github.com/nebari-dev/nebari/issues/3120
-        image = {
-          registry   = "docker.io"
-          repository = "bitnamilegacy/postgresql"
-          tag        = "16.6.0-debian-12-r2"
-        }
       }
-    waitContainer = {
-      # TODO: Remove hardcoded image values after Helm chart update
-      # This is a workaround due to bitnami charts deprecation
-      # See: https://github.com/bitnami/charts/issues/35164
-      # See: https://github.com/nebari-dev/nebari/issues/3120
-      image = {
-        registry = "docker.io"
-        repository = "bitnamilegacy/os-shell"
-        tag = "12-debian-12-r20"
-      }
-    }
     })
-  ], 
+  ],
   var.overrides
   )
 }
