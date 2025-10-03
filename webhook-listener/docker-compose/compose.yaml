@@ -1,0 +1,63 @@
+services:
+  model-create:
+    # creates a MLFlow model, and changes "status" model tag periodically
+    build:
+      context: ./model-create
+      dockerfile: Dockerfile
+    container_name: model-create
+    environment:
+      - DEPLOYMENT_STATUS_CYCLE_TIME=10
+      - WEBHOOK_SECRET=Sl7KScz-C0S93maHQMegj4qCwNtPz7_hDqnuWm4zKGU=
+    depends_on:
+      - mlflow
+      - webhook-listener
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.4.0
+    container_name: mlflow-server
+
+    ports:
+      - "5000:5000"
+
+    environment:
+      - MLFLOW_WEBHOOK_SECRET_ENCRYPTION_KEY=Sl7KScz-C0S93maHQMegj4qCwNtPz7_hDqnuWm4zKGU=
+      - REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+
+    # This entrypoint runs a short script before executing the original command.
+    # It updates the certificate store and then uses 'exec "$@"' to run
+    # the 'command' defined below.
+    entrypoint: |
+      sh -c '
+        echo "Updating CA certificates..."
+        update-ca-certificates
+        echo "Executing original command..."
+        exec "$@"
+      ' _
+
+    command:
+      - mlflow
+      - server
+      - --backend-store-uri=sqlite:///mlflow/mlflow.db
+      - --artifacts-destination=/mlflow/artifacts
+      - --serve-artifacts
+      - --host=0.0.0.0
+      - --port=5000
+
+    volumes:
+      - ./mlflow-data:/mlflow
+      # Mount your local certificate into the container's trust store.
+      # It must be renamed with a .crt extension.
+      - ${MKCERT_CAROOT:-~/.local/share/mkcert}/rootCA.pem:/usr/local/share/ca-certificates/custom-ca.crt:ro
+
+  webhook-listener:
+    build:
+      context: ./listener
+      dockerfile: Dockerfile
+    container_name: webhook-listener
+    ports:
+      - "8000:8000"
+    environment:
+      - WEBHOOK_SECRET=Sl7KScz-C0S93maHQMegj4qCwNtPz7_hDqnuWm4zKGU=
+    volumes:
+      - ./localhost-key.pem:/app/localhost-key.pem:ro
+      - ./localhost-cert.pem:/app/localhost-cert.pem:ro
