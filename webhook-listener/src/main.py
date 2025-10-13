@@ -1,6 +1,7 @@
 """FastAPI application for MLflow webhook listener."""
 
 import logging
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, Request, Header, HTTPException
@@ -14,27 +15,31 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
-app = FastAPI(
-    title="MLflow KServe Webhook Listener",
-    description="Automatically deploy MLflow models to KServe based on tags",
-    version="0.1.0",
-)
 
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup."""
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """
+    Lifespan context manager for startup and shutdown events.
+    """
+    # Startup
     logger.info("Starting MLflow KServe Webhook Listener")
     logger.info(f"MLflow Tracking URI: {settings.mlflow_tracking_uri}")
     logger.info(f"Kubernetes Namespace: {settings.kube_namespace}")
     logger.info(f"Storage URI Base: {settings.storage_uri_base}")
 
+    yield
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown."""
+    # Shutdown
     logger.info("Shutting down MLflow KServe Webhook Listener")
+
+
+# Initialize FastAPI app
+app = FastAPI(
+    title="MLflow KServe Webhook Listener",
+    description="Automatically deploy MLflow models to KServe based on tags",
+    version="0.1.0",
+    lifespan=lifespan,
+)
 
 
 @app.post("/webhook")
