@@ -328,6 +328,10 @@ data:
           storageUri: "{storage_uri}"
 ```
 
+## References
+- docker-compose dir may have some useful stuff already in it
+- inference-service-test dir may also have some useful stuff already in it
+
 ## Error Handling
 
 ### Scenarios
