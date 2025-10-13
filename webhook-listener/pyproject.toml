@@ -21,14 +21,22 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-  "fastapi",
-  "mlflow",
-  "uvicorn[standard]",
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.30.0",
+  "pydantic>=2.0.0",
+  "pydantic-settings>=2.0.0",
+  "kubernetes>=29.0.0",
+  "mlflow>=3.2.0",
+  "jinja2>=3.1.0",
+  "pyyaml>=6.0",
+  "httpx>=0.27.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "pytest",
+  "pytest>=8.0.0",
+  "pytest-asyncio>=0.23.0",
+  "pytest-mock>=3.12.0",
   "jupyterlab",
   "scikit-learn",
   "pandas",
@@ -37,9 +45,3 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
-
-[tool.hatch.envs.default]
-dependencies = []
-
-[tool.hatch.envs.default.scripts]
-dev = "uvicorn app:app --reload"

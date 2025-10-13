@@ -55,7 +55,7 @@ services:
       dockerfile: Dockerfile
     container_name: webhook-listener
     ports:
-      - "8000:8000"
+      - "18347:8000"
     environment:
       - WEBHOOK_SECRET=Sl7KScz-C0S93maHQMegj4qCwNtPz7_hDqnuWm4zKGU=
     volumes:

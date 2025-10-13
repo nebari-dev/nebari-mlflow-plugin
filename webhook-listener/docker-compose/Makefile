@@ -1,4 +1,4 @@
-.PHONY: certs clean-certs clean-data clean-all
+.PHONY: certs clean-certs clean-data clean
 
 certs:
 	mkcert -cert-file localhost-cert.pem -key-file localhost-key.pem localhost webhook-listener localhost 127.0.0.1 ::1
