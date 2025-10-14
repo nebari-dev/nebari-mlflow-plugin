@@ -7,9 +7,10 @@ resources:
   - deployment.yaml
   - service.yaml
 
-commonLabels:
-  app: mlflow-kserve-webhook-listener
-  managed-by: kustomize
+labels:
+  - pairs:
+      app: mlflow-kserve-webhook-listener
+      managed-by: kustomize
 
 # Note: The ConfigMap with the InferenceService template is defined
 # in configmap.yaml. Users can customize it in their overlays if needed.
