@@ -5,10 +5,11 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, Request, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
 
-from . import __version__
-from .config import settings
+from src import __version__
+from src.config import settings
+from src.mlflow_client import MLflowClient
 
 # Configure logging
 logging.basicConfig(
@@ -28,6 +29,25 @@ async def lifespan(_app: FastAPI):
     logger.info(f"MLflow Tracking URI: {settings.mlflow_tracking_uri}")
     logger.info(f"Kubernetes Namespace: {settings.kube_namespace}")
     logger.info(f"Storage URI Base: {settings.storage_uri_base}")
+    logger.info(f"Webhook URL: {settings.mlflow_webhook_url}")
+
+    # Initialize MLflow client and ensure webhook is registered
+    mlflow_client = MLflowClient(tracking_uri=settings.mlflow_tracking_uri)
+
+    logger.info("Checking webhook registration...")
+    was_created, webhook = mlflow_client.ensure_webhook_registered(
+        name=settings.mlflow_webhook_name,
+        url=settings.mlflow_webhook_url,
+        events=["model_version_tag.set", "model_version_tag.deleted"],
+        secret=settings.mlflow_webhook_secret,
+        description="Automatically deploy MLflow models to KServe based on tags",
+        test_on_create=False  # Don't test during startup to avoid circular dependency
+    )
+
+    if was_created:
+        logger.info(f"Webhook registered successfully: {webhook.webhook_id}")
+    else:
+        logger.info(f"Using existing webhook: {webhook.webhook_id}")
 
     yield
 
@@ -47,9 +67,9 @@ app = FastAPI(
 @app.post("/webhook")
 async def handle_webhook(
     request: Request,
-    x_mlflow_signature: Optional[str] = Header(None),
-    x_mlflow_delivery_id: Optional[str] = Header(None),
-    x_mlflow_timestamp: Optional[str] = Header(None),
+    x_mlflow_signature: str | None = Header(None),
+    x_mlflow_delivery_id: str | None = Header(None),
+    x_mlflow_timestamp: str | None = Header(None),
 ):
     """
     Handle incoming MLflow webhook events.
@@ -61,7 +81,7 @@ async def handle_webhook(
 
     # Get payload
     payload_bytes = await request.body()
-    payload = payload_bytes.decode("utf-8")
+    payload_bytes.decode("utf-8")
     webhook_data = await request.json()
 
     entity = webhook_data.get("entity")

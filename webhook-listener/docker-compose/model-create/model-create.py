@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-import time
-import sys
-import os
 import logging
+import os
+import sys
+import time
+
 import mlflow
 from mlflow import MlflowClient
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ for i in range(max_retries):
         client.search_registered_models()
         logger.info("MLflow server is ready!")
         break
-    except Exception as e:
+    except Exception:
         if i == max_retries - 1:
             logger.error(f"Failed to connect to MLflow server after {max_retries} attempts")
             sys.exit(1)
@@ -90,11 +91,11 @@ except Exception as e:
 if not model_exists:
     # Create the initial model
     import pandas as pd
+    from mlflow.models import infer_signature
     from sklearn import datasets
-    from sklearn.model_selection import train_test_split
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import accuracy_score
-    from mlflow.models import infer_signature
+    from sklearn.model_selection import train_test_split
 
     # Load the Iris dataset
     X, y = datasets.load_iris(return_X_y=True)

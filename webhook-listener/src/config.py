@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     mlflow_webhook_secret: str = Field(
         ..., description="Secret for verifying MLflow webhook signatures (required)"
     )
+    mlflow_webhook_url: str = Field(
+        ..., description="URL where this service receives webhooks (required)"
+    )
+    mlflow_webhook_name: str = Field(
+        default="mlflow-kserve-webhook",
+        description="Name for the registered webhook"
+    )
 
     # Kubernetes Configuration
     kube_namespace: str = Field(

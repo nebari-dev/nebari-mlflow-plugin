@@ -1,0 +1,17 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: {{ name }}
+  namespace: {{ namespace }}
+  labels:
+    managed-by: mlflow-webhook-listener
+    mlflow.org/model-name: {{ model_name }}
+    mlflow.org/model-version: "{{ model_version }}"
+    mlflow.org/run-id: {{ run_id }}
+    mlflow.org/experiment-id: {{ experiment_id }}
+spec:
+  predictor:
+    model:
+      modelFormat:
+        name: mlflow
+      storageUri: {{ storage_uri }}

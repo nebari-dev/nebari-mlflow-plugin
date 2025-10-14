@@ -536,18 +536,18 @@ This task list provides an ordered approach to implementing the service, startin
   - Test loading from environment variables
   - Add `model_config` for proper env prefix handling
 
-- [ ] **2.2** Create default InferenceService template
+- [x] **2.2** Create default InferenceService template
   - Create `templates/inference_service.yaml.j2` with Jinja2 template
   - Include all template variables: name, namespace, model_name, model_version, storage_uri, run_id, experiment_id
   - Add labels for tracking
 
-- [ ] **2.3** Implement `src/templates.py`
+- [x] **2.3** Implement `src/templates.py`
   - `render_inference_service()`: Load and render Jinja2 template
   - `sanitize_k8s_name()`: Implement K8s naming rules (lowercase, max 253 chars, alphanumeric + hyphens)
   - `generate_inference_service_name()`: Create name from model_name and version
   - Add error handling for template rendering failures
 
-- [ ] **2.4** Test template rendering independently
+- [x] **2.4** Test template rendering independently
   - Unit tests for `sanitize_k8s_name()` with various inputs
   - Unit tests for template rendering with sample data
   - Verify generated YAML is valid
@@ -556,12 +556,12 @@ This task list provides an ordered approach to implementing the service, startin
 
 **Goal:** Implement webhook signature verification and event routing logic.
 
-- [ ] **3.1** Implement signature verification in `src/webhook_handler.py`
+- [x] **3.1** Implement signature verification in `src/webhook_handler.py`
   - `verify_timestamp_freshness()`: Check timestamp is within 5 minutes
   - `verify_mlflow_signature()`: Implement HMAC-SHA256 verification
   - Add comprehensive logging for security events
 
-- [ ] **3.2** Implement event routing logic in `src/webhook_handler.py`
+- [x] **3.2** Implement event routing logic in `src/webhook_handler.py`
   - `process_webhook_event()`: Main orchestrator function
   - Parse webhook payload and extract relevant fields
   - Route to appropriate handler based on entity and action:

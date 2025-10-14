@@ -1,11 +1,12 @@
-from fastapi import FastAPI, Request, HTTPException, Header
-from typing import Optional
-import hmac
-import hashlib
 import base64
+import hashlib
+import hmac
 import logging
-import time
 import os
+import time
+from typing import Optional
+
+from fastapi import FastAPI, Header, HTTPException, Request
 
 # Configure the root logger
 logging.basicConfig(level=logging.DEBUG)
@@ -56,9 +57,9 @@ def verify_mlflow_signature(
 @app.post("/webhook")
 async def handle_webhook(
     request: Request,
-    x_mlflow_signature: Optional[str] = Header(None),
-    x_mlflow_delivery_id: Optional[str] = Header(None),
-    x_mlflow_timestamp: Optional[str] = Header(None),
+    x_mlflow_signature: str | None = Header(None),
+    x_mlflow_delivery_id: str | None = Header(None),
+    x_mlflow_timestamp: str | None = Header(None),
 ):
     """Handle webhook with HMAC signature verification"""
 
@@ -97,32 +98,25 @@ async def handle_webhook(
     # Extract webhook metadata
     entity = webhook_data.get("entity")
     action = webhook_data.get("action")
-    timestamp = webhook_data.get("timestamp")
+    webhook_data.get("timestamp")
     payload_data = webhook_data.get("data", {})
 
     # Print the payload for debugging
-    print(f"Received webhook: {entity}.{action}")
-    print(f"Timestamp: {timestamp}")
-    print(f"Delivery ID: {x_mlflow_delivery_id}")
-    print(f"Payload: {payload_data}")
 
     # Add your webhook processing logic here
     # For example, handle different event types
     if entity == "model_version" and action == "created":
-        model_name = payload_data.get("name")
-        version = payload_data.get("version")
-        print(f"New model version: {model_name} v{version}")
+        payload_data.get("name")
+        payload_data.get("version")
         # Add your model version processing logic here
     elif entity == "registered_model" and action == "created":
-        model_name = payload_data.get("name")
-        print(f"New registered model: {model_name}")
+        payload_data.get("name")
         # Add your registered model processing logic here
     elif entity == "model_version_tag" and action == "set":
-        model_name = payload_data.get("name")
-        version = payload_data.get("version")
-        tag_key = payload_data.get("key")
-        tag_value = payload_data.get("value")
-        print(f"Tag set on {model_name} v{version}: {tag_key}={tag_value}")
+        payload_data.get("name")
+        payload_data.get("version")
+        payload_data.get("key")
+        payload_data.get("value")
         # Add your tag processing logic here
 
     return {"status": "success"}

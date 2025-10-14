@@ -1,7 +1,7 @@
 """Kubernetes client for managing InferenceServices."""
 
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class KubernetesClient:
 
     async def create_inference_service(
         self, name: str, manifest: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create an InferenceService from YAML manifest.
 
@@ -42,7 +42,7 @@ class KubernetesClient:
             "namespace": self.namespace,
         }
 
-    async def delete_inference_service(self, name: str) -> Dict[str, Any]:
+    async def delete_inference_service(self, name: str) -> dict[str, Any]:
         """
         Delete an InferenceService by name.
 
@@ -58,7 +58,7 @@ class KubernetesClient:
             "namespace": self.namespace,
         }
 
-    async def get_inference_service(self, name: str) -> Optional[Dict[str, Any]]:
+    async def get_inference_service(self, name: str) -> dict[str, Any] | None:
         """
         Get an InferenceService by name.
 
@@ -71,8 +71,8 @@ class KubernetesClient:
         return None
 
     async def list_inference_services(
-        self, label_selector: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, label_selector: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         List all InferenceServices, optionally filtered by labels.
 
@@ -86,7 +86,7 @@ class KubernetesClient:
 
     async def update_inference_service(
         self, name: str, manifest: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Update an existing InferenceService.
 
