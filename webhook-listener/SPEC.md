@@ -569,13 +569,13 @@ This task list provides an ordered approach to implementing the service, startin
     - `handle_tag_deleted_event()`: When tag is deleted
   - Add logic to check if tag_key == "deploy"
 
-- [ ] **3.3** Update `src/main.py` webhook endpoint
+- [x] **3.3** Update `src/main.py` webhook endpoint
   - Wire up signature verification (reject if invalid)
   - Call `process_webhook_event()` with verified payload
   - Return appropriate HTTP status codes and responses
   - Add error handling with proper status codes (401, 500, 502)
 
-- [ ] **3.4** Test webhook endpoint
+- [x] **3.4** Test webhook endpoint
   - Unit tests for signature verification (valid/invalid cases)
   - Unit tests for event routing logic
   - Mock webhook requests with proper headers
@@ -584,19 +584,19 @@ This task list provides an ordered approach to implementing the service, startin
 
 **Goal:** Implement MLflow API client to fetch model details.
 
-- [ ] **4.1** Implement `src/mlflow_client.py`
+- [x] **4.1** Implement `src/mlflow_client.py`
   - `MLflowClient.__init__()`: Initialize with tracking URI from settings
   - `get_model_version()`: Fetch model version details including run_id
   - `get_run()`: Fetch run details to get artifact URI
   - `build_storage_uri()`: Construct full storage URI for model artifacts
   - Add error handling for MLflow API failures
 
-- [ ] **4.2** Integrate MLflow client into webhook handler
+- [x] **4.2** Integrate MLflow client into webhook handler
   - In `handle_tag_set_event()`, call MLflow to get model details
   - Extract: model_name, model_version, run_id, experiment_id, storage_uri
   - Pass this data to template renderer
 
-- [ ] **4.3** Test MLflow integration
+- [x] **4.3** Test MLflow integration
   - Unit tests with mocked MLflow responses
   - Test error handling (MLflow unavailable, model not found)
 
@@ -604,7 +604,7 @@ This task list provides an ordered approach to implementing the service, startin
 
 **Goal:** Implement Kubernetes client to manage InferenceServices.
 
-- [ ] **5.1** Implement `src/kubernetes_client.py`
+- [x] **5.1** Implement `src/kubernetes_client.py`
   - `KubernetesClient.__init__()`: Initialize K8s client (in-cluster or local)
   - `create_inference_service()`: Create InferenceService from YAML manifest
   - `delete_inference_service()`: Delete InferenceService by name

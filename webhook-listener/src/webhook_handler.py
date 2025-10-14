@@ -4,10 +4,18 @@ import base64
 import hashlib
 import hmac
 import logging
+import textwrap
 import time
 from typing import Any, Dict
 
+from src.config import settings
+from src.mlflow_client import MLflowClient
+from src.templates import render_inference_service
+
 logger = logging.getLogger(__name__)
+
+# Initialize MLflow client
+mlflow_client = MLflowClient(tracking_uri=settings.mlflow_tracking_uri)
 
 
 def verify_mlflow_signature(
@@ -296,14 +304,101 @@ async def handle_tag_set_event(data: dict[str, Any]) -> dict[str, Any]:
                 "action": "deploy",
             },
         )
-        # TODO: Phase 4 - Fetch model details from MLflow
-        # TODO: Phase 5 - Deploy to Kubernetes
-        return {
-            "action": "deploy_triggered",
-            "model_name": model_name,
-            "version": version,
-            "message": "Deployment logic not yet implemented (Phase 4-5)",
-        }
+
+        try:
+            # Fetch model version details from MLflow
+            logger.info(
+                f"Fetching model details from MLflow for {model_name} v{version}",
+                extra={"model_name": model_name, "version": version},
+            )
+
+            model_version = await mlflow_client.get_model_version(model_name, version)
+            run_id = model_version["run_id"]
+
+            # Get run details to fetch experiment_id
+            run_details = await mlflow_client.get_run(run_id)
+            experiment_id = run_details["experiment_id"]
+
+            # Build storage URI using MLflow client
+            storage_uri = await mlflow_client.build_storage_uri(
+                model_name, version, settings.storage_uri_base
+            )
+
+            logger.info(
+                f"Successfully fetched model details for {model_name} v{version}",
+                extra={
+                    "model_name": model_name,
+                    "version": version,
+                    "run_id": run_id,
+                    "experiment_id": experiment_id,
+                    "storage_uri": storage_uri,
+                },
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to fetch model details from MLflow for {model_name} v{version}: {e}",
+                extra={
+                    "model_name": model_name,
+                    "version": version,
+                    "error": str(e),
+                },
+                exc_info=True,
+            )
+            return {
+                "action": "error",
+                "model_name": model_name,
+                "version": version,
+                "message": f"Failed to fetch model details from MLflow: {e!s}",
+            }
+
+        try:
+            # Render the InferenceService manifest
+            manifest = render_inference_service(
+                model_name=model_name,
+                model_version=version,
+                storage_uri=storage_uri,
+                run_id=run_id,
+                experiment_id=experiment_id,
+                namespace=settings.kube_namespace,
+            )
+
+            # Log the manifest
+            indented_manifest = textwrap.indent(manifest, prefix="\t")
+            logger.info(
+                f"Generated InferenceService manifest for {model_name} v{version}:\n{indented_manifest}",
+                extra={
+                    "model_name": model_name,
+                    "version": version,
+                    "manifest": manifest,
+                },
+            )
+
+            # TODO: Phase 5 - Deploy to Kubernetes
+            return {
+                "action": "deploy_triggered",
+                "model_name": model_name,
+                "version": version,
+                "manifest_generated": True,
+                "message": "Manifest generated successfully. Kubernetes deployment not yet implemented (Phase 5)",
+            }
+
+        except Exception as e:
+            logger.error(
+                f"Failed to generate manifest for {model_name} v{version}: {e}",
+                extra={
+                    "model_name": model_name,
+                    "version": version,
+                    "error": str(e),
+                },
+                exc_info=True,
+            )
+            return {
+                "action": "error",
+                "model_name": model_name,
+                "version": version,
+                "message": f"Failed to generate manifest: {str(e)}",
+            }
 
     elif tag_value == "false":
         logger.info(

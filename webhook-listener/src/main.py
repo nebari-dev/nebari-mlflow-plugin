@@ -1,5 +1,6 @@
 """FastAPI application for MLflow webhook listener."""
 
+import json
 import logging
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -10,6 +11,11 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from src import __version__
 from src.config import settings
 from src.mlflow_client import MLflowClient
+from src.webhook_handler import (
+    process_webhook_event,
+    verify_mlflow_signature,
+    verify_timestamp_freshness,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -74,31 +80,82 @@ async def handle_webhook(
     """
     Handle incoming MLflow webhook events.
 
-    This is a STUB implementation that returns placeholder responses.
-    Real implementation will be added in Phase 3.
+    Verifies the webhook signature and processes the event.
     """
     logger.info(f"Received webhook - Delivery ID: {x_mlflow_delivery_id}")
 
-    # Get payload
+    # Validate required headers
+    if not x_mlflow_signature or not x_mlflow_delivery_id or not x_mlflow_timestamp:
+        logger.warning(
+            "Missing required webhook headers",
+            extra={
+                "has_signature": bool(x_mlflow_signature),
+                "has_delivery_id": bool(x_mlflow_delivery_id),
+                "has_timestamp": bool(x_mlflow_timestamp),
+            },
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Missing required headers: x-mlflow-signature, x-mlflow-delivery-id, x-mlflow-timestamp",
+        )
+
+    # Get payload as bytes first (for signature verification)
     payload_bytes = await request.body()
-    payload_bytes.decode("utf-8")
-    webhook_data = await request.json()
+    payload_str = payload_bytes.decode("utf-8")
 
-    entity = webhook_data.get("entity")
-    action = webhook_data.get("action")
-    data = webhook_data.get("data", {})
+    # Parse JSON from the string
+    webhook_data = json.loads(payload_str)
 
-    logger.info(f"Event: {entity}.{action}")
-    logger.info(f"Data: {data}")
+    # Verify timestamp freshness (prevent replay attacks)
+    if not verify_timestamp_freshness(x_mlflow_timestamp):
+        logger.warning(
+            "Webhook timestamp is stale or invalid",
+            extra={
+                "delivery_id": x_mlflow_delivery_id,
+                "timestamp": x_mlflow_timestamp,
+            },
+        )
+        raise HTTPException(
+            status_code=401,
+            detail="Webhook timestamp is stale or invalid",
+        )
 
-    # STUB: Return placeholder response
-    return {
-        "status": "success",
-        "message": "Webhook received (stub implementation)",
-        "entity": entity,
-        "action": action,
-        "delivery_id": x_mlflow_delivery_id,
-    }
+    # Verify signature
+    if not verify_mlflow_signature(
+        payload=payload_str,
+        signature=x_mlflow_signature,
+        secret=settings.mlflow_webhook_secret,
+        delivery_id=x_mlflow_delivery_id,
+        timestamp=x_mlflow_timestamp,
+    ):
+        logger.warning(
+            "Webhook signature verification failed",
+            extra={"delivery_id": x_mlflow_delivery_id},
+        )
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid webhook signature",
+        )
+
+    logger.info(
+        "Webhook verified successfully",
+        extra={"delivery_id": x_mlflow_delivery_id},
+    )
+
+    # Process the webhook event
+    try:
+        result = await process_webhook_event(webhook_data, x_mlflow_delivery_id)
+        return result
+    except Exception as e:
+        logger.error(
+            f"Error processing webhook: {e}",
+            extra={"delivery_id": x_mlflow_delivery_id},
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing webhook: {str(e)}",
+        )
 
 
 @app.get("/health")

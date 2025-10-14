@@ -5,6 +5,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+import src.config
+
 
 @pytest.fixture
 def test_env(monkeypatch):
@@ -20,6 +22,11 @@ def test_env(monkeypatch):
 @pytest.fixture
 def client(test_env):
     """Create a test client for the FastAPI app."""
+    # Ensure settings is recreated with test environment variables
+    # This is needed because settings is a module-level singleton that may have been
+    # initialized by other test files before this fixture runs
+    src.config.settings = src.config.Settings()
+
     # Mock MLflow webhook registration to avoid errors during tests
     mock_webhook = MagicMock()
     mock_webhook.webhook_id = "test-webhook-id"

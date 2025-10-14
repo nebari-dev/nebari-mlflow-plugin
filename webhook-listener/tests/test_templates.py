@@ -110,7 +110,7 @@ class TestRenderInferenceService:
         assert "mlflow.org/run-id: run123" in result
         assert "mlflow.org/experiment-id: exp456" in result
         assert "storageUri: s3://bucket/path" in result
-        assert "managed-by: mlflow-webhook-listener" in result
+        assert "managed-by: nebari-mlflow-webhook-listener" in result
 
     def test_custom_name(self):
         """Test rendering with custom InferenceService name."""
@@ -217,7 +217,7 @@ class TestYAMLValidation:
         # Verify labels
         assert "labels" in parsed["metadata"]
         labels = parsed["metadata"]["labels"]
-        assert labels["managed-by"] == "mlflow-webhook-listener"
+        assert labels["managed-by"] == "nebari-mlflow-webhook-listener"
         assert labels["mlflow.org/model-name"] == "iris-classifier"
         assert labels["mlflow.org/model-version"] == "2"
         assert labels["mlflow.org/run-id"] == "abc123def456"

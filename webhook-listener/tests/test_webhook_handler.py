@@ -3,8 +3,7 @@
 import base64
 import hashlib
 import hmac
-import time
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from src.webhook_handler import (
@@ -350,8 +349,26 @@ class TestHandleTagSetEvent:
     """Test cases for tag set event handler."""
 
     @pytest.mark.asyncio
-    async def test_handle_tag_set_event_deploy_true(self):
+    @patch("src.webhook_handler.mlflow_client")
+    async def test_handle_tag_set_event_deploy_true(self, mock_mlflow_client):
         """Test handling of deploy tag set to true."""
+        # Mock MLflow client responses (need to use AsyncMock for async methods)
+        mock_mlflow_client.get_model_version = AsyncMock(return_value={
+            "name": "iris-classifier",
+            "version": "3",
+            "run_id": "test-run-123",
+            "status": "READY",
+            "source": "gs://test/1/test-run-123/artifacts/model",
+        })
+        mock_mlflow_client.get_run = AsyncMock(return_value={
+            "run_id": "test-run-123",
+            "experiment_id": "1",
+            "artifact_uri": "gs://test/1/test-run-123/artifacts",
+        })
+        mock_mlflow_client.build_storage_uri = AsyncMock(
+            return_value="gs://test/1/test-run-123/artifacts/model"
+        )
+
         data = {
             "name": "iris-classifier",
             "version": "3",
@@ -364,6 +381,8 @@ class TestHandleTagSetEvent:
         assert result["action"] == "deploy_triggered"
         assert result["model_name"] == "iris-classifier"
         assert result["version"] == "3"
+        mock_mlflow_client.get_model_version.assert_called_once_with("iris-classifier", "3")
+        mock_mlflow_client.get_run.assert_called_once_with("test-run-123")
 
     @pytest.mark.asyncio
     async def test_handle_tag_set_event_deploy_false(self):
@@ -419,6 +438,27 @@ class TestHandleTagSetEvent:
         result = await handle_tag_set_event(data)
 
         assert result["action"] == "ignored"
+
+    @pytest.mark.asyncio
+    @patch("src.webhook_handler.mlflow_client")
+    async def test_handle_tag_set_event_mlflow_error(self, mock_mlflow_client):
+        """Test handling of deploy tag when MLflow API fails."""
+        # Mock MLflow client to raise an exception
+        mock_mlflow_client.get_model_version = AsyncMock(side_effect=Exception("MLflow API error"))
+
+        data = {
+            "name": "iris-classifier",
+            "version": "3",
+            "key": "deploy",
+            "value": "true",
+        }
+
+        result = await handle_tag_set_event(data)
+
+        assert result["action"] == "error"
+        assert result["model_name"] == "iris-classifier"
+        assert result["version"] == "3"
+        assert "Failed to fetch model details from MLflow" in result["message"]
 
 
 class TestHandleTagDeletedEvent:

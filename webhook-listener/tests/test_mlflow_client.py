@@ -3,6 +3,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from mlflow.entities import Run, RunInfo
+from mlflow.entities.model_registry import ModelVersion
 from src.mlflow_client import MLflowClient
 
 
@@ -181,3 +183,156 @@ def test_ensure_webhook_registered_with_test(mlflow_client):
     assert was_created is True
     assert webhook.webhook_id == "new-webhook"
     mlflow_client._client.test_webhook.assert_called_once_with("new-webhook")
+
+
+@pytest.mark.asyncio
+async def test_get_model_version(mlflow_client):
+    """Test fetching model version details."""
+    mock_model_version = ModelVersion(
+        name="test-model",
+        version="1",
+        creation_timestamp=1234567890,
+        last_updated_timestamp=1234567890,
+        description="Test model",
+        user_id="test-user",
+        current_stage="Production",
+        source="gs://test-bucket/1/abc123/artifacts/model",
+        run_id="abc123",
+        status="READY",
+        status_message=None,
+        tags={},
+        run_link=None,
+        aliases=[]
+    )
+
+    mlflow_client._client.get_model_version.return_value = mock_model_version
+
+    result = await mlflow_client.get_model_version("test-model", "1")
+
+    assert result["name"] == "test-model"
+    assert result["version"] == "1"
+    assert result["run_id"] == "abc123"
+    assert result["status"] == "READY"
+    assert result["source"] == "gs://test-bucket/1/abc123/artifacts/model"
+    assert result["current_stage"] == "Production"
+    mlflow_client._client.get_model_version.assert_called_once_with(name="test-model", version="1")
+
+
+@pytest.mark.asyncio
+async def test_get_model_version_error(mlflow_client):
+    """Test get_model_version with error."""
+    mlflow_client._client.get_model_version.side_effect = Exception("Model not found")
+
+    with pytest.raises(Exception, match="Model not found"):
+        await mlflow_client.get_model_version("test-model", "999")
+
+
+@pytest.mark.asyncio
+async def test_get_run(mlflow_client):
+    """Test fetching run details."""
+    mock_run_info = RunInfo(
+        run_id="abc123",
+        experiment_id="1",
+        user_id="test-user",
+        status="FINISHED",
+        start_time=1234567890,
+        end_time=1234567900,
+        lifecycle_stage="active",
+        artifact_uri="gs://test-bucket/1/abc123/artifacts"
+    )
+    mock_run = Run(run_info=mock_run_info, run_data=MagicMock())
+
+    mlflow_client._client.get_run.return_value = mock_run
+
+    result = await mlflow_client.get_run("abc123")
+
+    assert result["run_id"] == "abc123"
+    assert result["experiment_id"] == "1"
+    assert result["artifact_uri"] == "gs://test-bucket/1/abc123/artifacts"
+    assert result["status"] == "FINISHED"
+    mlflow_client._client.get_run.assert_called_once_with(run_id="abc123")
+
+
+@pytest.mark.asyncio
+async def test_get_run_error(mlflow_client):
+    """Test get_run with error."""
+    mlflow_client._client.get_run.side_effect = Exception("Run not found")
+
+    with pytest.raises(Exception, match="Run not found"):
+        await mlflow_client.get_run("invalid-run-id")
+
+
+@pytest.mark.asyncio
+async def test_build_storage_uri_without_base(mlflow_client):
+    """Test building storage URI without custom base (uses source directly)."""
+    mock_model_version = ModelVersion(
+        name="test-model",
+        version="1",
+        creation_timestamp=1234567890,
+        last_updated_timestamp=1234567890,
+        description="Test model",
+        user_id="test-user",
+        current_stage="Production",
+        source="gs://test-bucket/1/abc123/artifacts/model",
+        run_id="abc123",
+        status="READY",
+        status_message=None,
+        tags={},
+        run_link=None,
+        aliases=[]
+    )
+
+    mlflow_client._client.get_model_version.return_value = mock_model_version
+
+    result = await mlflow_client.build_storage_uri("test-model", "1")
+
+    assert result == "gs://test-bucket/1/abc123/artifacts/model"
+
+
+@pytest.mark.asyncio
+async def test_build_storage_uri_with_base(mlflow_client):
+    """Test building storage URI with custom base."""
+    mock_model_version = ModelVersion(
+        name="test-model",
+        version="1",
+        creation_timestamp=1234567890,
+        last_updated_timestamp=1234567890,
+        description="Test model",
+        user_id="test-user",
+        current_stage="Production",
+        source="gs://original-bucket/1/abc123/artifacts/model",
+        run_id="abc123",
+        status="READY",
+        status_message=None,
+        tags={},
+        run_link=None,
+        aliases=[]
+    )
+
+    mock_run_info = RunInfo(
+        run_id="abc123",
+        experiment_id="1",
+        user_id="test-user",
+        status="FINISHED",
+        start_time=1234567890,
+        end_time=1234567900,
+        lifecycle_stage="active",
+        artifact_uri="gs://original-bucket/1/abc123/artifacts"
+    )
+    mock_run = Run(run_info=mock_run_info, run_data=MagicMock())
+
+    mlflow_client._client.get_model_version.return_value = mock_model_version
+    mlflow_client._client.get_run.return_value = mock_run
+
+    result = await mlflow_client.build_storage_uri("test-model", "1", "gs://custom-bucket")
+
+    assert result == "gs://custom-bucket/1/abc123/artifacts/model"
+
+
+@pytest.mark.asyncio
+async def test_build_storage_uri_error(mlflow_client):
+    """Test build_storage_uri with error."""
+    mlflow_client._client.get_model_version.side_effect = Exception("Model not found")
+
+    with pytest.raises(Exception, match="Model not found"):
+        await mlflow_client.build_storage_uri("test-model", "999")

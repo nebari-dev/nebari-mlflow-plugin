@@ -1,6 +1,7 @@
 """MLflow API client for fetching model details."""
 
 import logging
+import re
 from typing import Any
 
 from mlflow import MlflowClient as MLflowSDKClient
@@ -28,52 +29,130 @@ class MLflowClient:
         """
         Fetch model version details from MLflow.
 
-        STUB: Currently returns dummy data.
-        Real implementation will be added in Phase 4.
-        """
-        logger.info(f"Fetching model version: {model_name} v{version} (stub)")
+        Args:
+            model_name: Name of the registered model
+            version: Version number of the model
 
-        # STUB: Return dummy model version data
-        return {
-            "name": model_name,
-            "version": version,
-            "run_id": "dummy-run-id-12345",
-            "status": "READY",
-            "source": f"gs://dummy-bucket/1/{model_name}/artifacts",
-        }
+        Returns:
+            Dictionary containing model version details including run_id, status, and source
+
+        Raises:
+            Exception: If the model version cannot be fetched from MLflow
+        """
+        try:
+            logger.info(f"Fetching model version: {model_name} v{version}")
+
+            # Fetch model version from MLflow
+            model_version = self._client.get_model_version(name=model_name, version=version)
+
+            result = {
+                "name": model_version.name,
+                "version": model_version.version,
+                "run_id": model_version.run_id,
+                "status": model_version.status,
+                "source": model_version.source,
+                "current_stage": model_version.current_stage,
+                "creation_timestamp": model_version.creation_timestamp,
+                "last_updated_timestamp": model_version.last_updated_timestamp,
+            }
+
+            logger.debug(f"Model version details: run_id={result['run_id']}, status={result['status']}")
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to fetch model version {model_name} v{version}: {e}")
+            raise
 
     async def get_run(self, run_id: str) -> dict[str, Any]:
         """
         Fetch run details from MLflow.
 
-        STUB: Currently returns dummy data.
-        Real implementation will be added in Phase 4.
-        """
-        logger.info(f"Fetching run: {run_id} (stub)")
+        Args:
+            run_id: MLflow run ID
 
-        # STUB: Return dummy run data
-        return {
-            "run_id": run_id,
-            "experiment_id": "1",
-            "artifact_uri": f"gs://dummy-bucket/1/{run_id}/artifacts",
-            "status": "FINISHED",
-        }
+        Returns:
+            Dictionary containing run details including experiment_id, artifact_uri, and status
+
+        Raises:
+            Exception: If the run cannot be fetched from MLflow
+        """
+        try:
+            logger.info(f"Fetching run: {run_id}")
+
+            # Fetch run from MLflow
+            run = self._client.get_run(run_id=run_id)
+
+            result = {
+                "run_id": run.info.run_id,
+                "experiment_id": run.info.experiment_id,
+                "artifact_uri": run.info.artifact_uri,
+                "status": run.info.status,
+                "start_time": run.info.start_time,
+                "end_time": run.info.end_time,
+                "lifecycle_stage": run.info.lifecycle_stage,
+            }
+
+            logger.debug(f"Run details: experiment_id={result['experiment_id']}, artifact_uri={result['artifact_uri']}")
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to fetch run {run_id}: {e}")
+            raise
 
     async def build_storage_uri(
-        self, model_name: str, version: str, storage_uri_base: str
+        self, model_name: str, version: str, storage_uri_base: str | None = None
     ) -> str:
         """
         Construct the full storage URI for model artifacts.
 
-        STUB: Currently returns a constructed path.
-        Real implementation will be added in Phase 4.
-        """
-        logger.info(f"Building storage URI for {model_name} v{version} (stub)")
+        This method fetches the model version details and run information to build
+        the complete storage URI where the model artifacts are stored.
 
-        # STUB: Return a dummy storage URI
-        storage_uri = f"{storage_uri_base}/1/dummy-run-id/artifacts/model"
-        logger.debug(f"Storage URI: {storage_uri}")
-        return storage_uri
+        Args:
+            model_name: Name of the registered model
+            version: Version number of the model
+            storage_uri_base: Optional base URI to override the artifact URI from MLflow.
+                            If not provided, uses the artifact URI from the run.
+
+        Returns:
+            Full storage URI path to the model artifacts
+
+        Raises:
+            Exception: If the storage URI cannot be constructed
+        """
+        try:
+            logger.info(f"Building storage URI for {model_name} v{version}")
+
+            # Fetch model version to get run_id and source
+            model_version = await self.get_model_version(model_name, version)
+            run_id = model_version["run_id"]
+
+            # If storage_uri_base is provided, use it; otherwise fetch from run
+            if storage_uri_base:
+                # Use the provided base URI and append the run-specific path
+                run = await self.get_run(run_id)
+                artifact_uri = run["artifact_uri"]
+
+                # Extract the path after the base URI from artifact_uri
+                # artifact_uri format: <base>/<experiment_id>/<run_id>/artifacts
+                # We want to construct: <storage_uri_base>/<experiment_id>/<run_id>/artifacts/model
+                match = re.search(r"/(\d+/[a-f0-9]+/artifacts)", artifact_uri)
+                if match:
+                    relative_path = match.group(1)
+                    storage_uri = f"{storage_uri_base.rstrip('/')}/{relative_path}/model"
+                else:
+                    # Fallback: use model source if pattern doesn't match
+                    storage_uri = model_version["source"]
+            else:
+                # Use the source directly from model version
+                storage_uri = model_version["source"]
+
+            logger.debug(f"Storage URI: {storage_uri}")
+            return storage_uri
+
+        except Exception as e:
+            logger.error(f"Failed to build storage URI for {model_name} v{version}: {e}")
+            raise
 
     def list_webhooks(self) -> list[Any]:
         """
