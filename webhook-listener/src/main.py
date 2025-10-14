@@ -4,8 +4,10 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Optional
 
+import uvicorn
 from fastapi import FastAPI, Request, Header, HTTPException
 
+from . import __version__
 from .config import settings
 
 # Configure logging
@@ -37,7 +39,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(
     title="MLflow KServe Webhook Listener",
     description="Automatically deploy MLflow models to KServe based on tags",
-    version="0.1.0",
+    version=__version__,
     lifespan=lifespan,
 )
 
@@ -107,12 +109,15 @@ async def list_services():
     }
 
 
-if __name__ == "__main__":
-    import uvicorn
-
+def main():
+    """Main entry point for the CLI."""
     uvicorn.run(
         app,
         host=settings.app_host,
         port=settings.app_port,
         log_level=settings.log_level.lower(),
     )
+
+
+if __name__ == "__main__":
+    main()
