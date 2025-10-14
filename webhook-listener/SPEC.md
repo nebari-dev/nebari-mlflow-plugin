@@ -653,24 +653,24 @@ This task list provides an ordered approach to implementing the service, startin
 
 **Goal:** Create K8s manifests to deploy the service.
 
-- [ ] **7.1** Create `k8s/rbac.yaml`
+- [x] **7.1** Create `k8s/rbac.yaml`
   - ServiceAccount
   - ClusterRole with InferenceService permissions
   - ClusterRoleBinding
 
-- [ ] **7.2** Create `k8s/configmap.yaml`
+- [x] **7.2** Create `k8s/configmap.yaml`
   - Store InferenceService template
 
-- [ ] **7.3** Create `k8s/deployment.yaml`
+- [x] **7.3** Create `k8s/deployment.yaml`
   - Deployment with proper env vars
   - Resource limits
   - Health check probes
   - Volume mount for ConfigMap template
 
-- [ ] **7.4** Create `k8s/service.yaml`
+- [x] **7.4** Create `k8s/service.yaml`
   - ClusterIP service exposing port 80
 
-- [ ] **7.5** Create `k8s/secret.yaml.example`
+- [x] **7.5** Create `k8s/secret.yaml.example`
   - Example secret for webhook secret
   - Add instructions in README
 
