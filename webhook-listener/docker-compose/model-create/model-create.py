@@ -37,43 +37,8 @@ for i in range(max_retries):
         logger.info(f"Attempt {i+1}/{max_retries}: MLflow server not ready yet, waiting {retry_delay}s...")
         time.sleep(retry_delay)
 
-# Check if webhook already exists and create if it doesn't
-webhook_secret = os.getenv("WEBHOOK_SECRET")
-webhook_url = "https://webhook-listener:8000/webhook"
-webhook_exists = False
-
-try:
-    # Try to list existing webhooks
-    webhooks = client.list_webhooks()
-    for webhook in webhooks:
-        if webhook.url == webhook_url:
-            logger.info(f"Webhook already exists with ID: {webhook.webhook_id}")
-            webhook_exists = True
-            break
-except Exception as e:
-    logger.error(f"Error listing webhooks: {e}")
-
-if not webhook_exists and webhook_secret:
-    try:
-        logger.info(f"Creating webhook to {webhook_url}...")
-        webhook = client.create_webhook(
-            name="model-lifecycle-webhook",
-            url=webhook_url,
-            events=["model_version_tag.set", "registered_model.created", "model_version.created"],
-            description="Webhook for tracking model lifecycle events",
-            secret=webhook_secret
-        )
-        logger.info(f"Webhook created successfully with ID: {webhook.webhook_id}")
-
-        # Test the webhook
-        logger.info("Testing webhook connectivity...")
-        test_result = client.test_webhook(webhook.webhook_id)
-        logger.info(f"Webhook test result: success={test_result.success}, status={test_result.response_status}, body={test_result.response_body}, error={test_result.error_message}")
-    except Exception as e:
-        logger.error(f"Error creating webhook: {e}")
-        logger.warning("Continuing without webhook...")
-elif not webhook_secret:
-    logger.warning("WEBHOOK_SECRET not set, skipping webhook creation")
+# Note: Webhook registration is now handled by the webhook-listener service on startup
+logger.info("Webhook registration is handled by the webhook-listener service")
 
 # Check if any models are registered
 model_exists = False
@@ -163,26 +128,27 @@ if not latest_versions:
 
 model_version = latest_versions[0].version
 
-# Cycle through deployment statuses
-statuses = ["deploying", "running", "not deployed"]
+# Cycle through deploy tag values: true, false
+deploy_values = ["true", "false"]
 status_index = 0
 
-logger.info(f"Starting deployment status cycling for model: {model_name} version: {model_version}")
+logger.info(f"Starting deploy tag cycling for model: {model_name} version: {model_version}")
+logger.info("This will trigger InferenceService creation/deletion in the webhook-listener")
 logger.info("Press Ctrl+C to stop...")
 
 try:
     while True:
-        current_status = statuses[status_index]
+        current_value = deploy_values[status_index]
 
-        # Set the deployment_status tag on the model version
+        # Set the deploy tag on the model version
         try:
-            logger.info(f"Setting deployment_status to: {current_status}")
-            client.set_model_version_tag(model_name, model_version, "deployment_status", current_status)
+            logger.info(f"Setting deploy tag to: {current_value}")
+            client.set_model_version_tag(model_name, model_version, "deploy", current_value)
         except Exception as e:
             logger.error(f"Error setting tag: {e}")
 
-        # Move to next status
-        status_index = (status_index + 1) % len(statuses)
+        # Move to next value
+        status_index = (status_index + 1) % len(deploy_values)
 
         # Wait before next update
         time.sleep(cycle_time)

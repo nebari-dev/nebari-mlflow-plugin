@@ -1,13 +1,12 @@
 services:
   model-create:
-    # creates a MLFlow model, and changes "status" model tag periodically
+    # creates a MLFlow model, and changes "deploy" model tag periodically
     build:
       context: ./model-create
       dockerfile: Dockerfile
     container_name: model-create
     environment:
       - DEPLOYMENT_STATUS_CYCLE_TIME=10
-      - WEBHOOK_SECRET=Sl7KScz-C0S93maHQMegj4qCwNtPz7_hDqnuWm4zKGU=
     depends_on:
       - mlflow
       - webhook-listener
@@ -51,13 +50,29 @@ services:
 
   webhook-listener:
     build:
-      context: ./listener
+      context: ..
       dockerfile: Dockerfile
     container_name: webhook-listener
     ports:
       - "18347:8000"
     environment:
-      - WEBHOOK_SECRET=Sl7KScz-C0S93maHQMegj4qCwNtPz7_hDqnuWm4zKGU=
+      # MLflow configuration
+      - MLFLOW_KSERVE_MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_KSERVE_MLFLOW_WEBHOOK_SECRET=Sl7KScz-C0S93maHQMegj4qCwNtPz7_hDqnuWm4zKGU=
+      - MLFLOW_KSERVE_MLFLOW_WEBHOOK_URL=https://webhook-listener:8000/webhook
+      - MLFLOW_KSERVE_MLFLOW_WEBHOOK_NAME=mlflow-kserve-webhook
+      # SSL/TLS configuration
+      - MLFLOW_KSERVE_SSL_CERTFILE=/app/localhost-cert.pem
+      - MLFLOW_KSERVE_SSL_KEYFILE=/app/localhost-key.pem
+      # Kubernetes configuration (not used in docker-compose, but required by config)
+      - MLFLOW_KSERVE_KUBE_NAMESPACE=kserve-mlflow-models
+      - MLFLOW_KSERVE_KUBE_IN_CLUSTER=false
+      # Storage configuration
+      - MLFLOW_KSERVE_STORAGE_URI_BASE=file:///mlflow/artifacts
+      # Logging
+      - MLFLOW_KSERVE_LOG_LEVEL=DEBUG
     volumes:
       - ./localhost-key.pem:/app/localhost-key.pem:ro
       - ./localhost-cert.pem:/app/localhost-cert.pem:ro
+    depends_on:
+      - mlflow

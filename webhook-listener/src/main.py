@@ -131,11 +131,23 @@ async def list_services():
 
 def main():
     """Main entry point for the CLI."""
+    # Configure SSL if certificates are provided
+    ssl_kwargs = {}
+    if settings.ssl_certfile and settings.ssl_keyfile:
+        logger.info(f"SSL enabled - cert: {settings.ssl_certfile}, key: {settings.ssl_keyfile}")
+        ssl_kwargs = {
+            "ssl_certfile": settings.ssl_certfile,
+            "ssl_keyfile": settings.ssl_keyfile,
+        }
+    else:
+        logger.info("SSL not configured - running without HTTPS")
+
     uvicorn.run(
         app,
         host=settings.app_host,
         port=settings.app_port,
         log_level=settings.log_level.lower(),
+        **ssl_kwargs,
     )
 
 

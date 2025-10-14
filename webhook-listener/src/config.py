@@ -11,6 +11,14 @@ class Settings(BaseSettings):
     app_host: str = Field(default="0.0.0.0", description="Host to bind the server to")
     app_port: int = Field(default=8000, description="Port to bind the server to")
 
+    # SSL/TLS Configuration (optional)
+    ssl_certfile: str | None = Field(
+        default=None, description="Path to SSL certificate file (optional)"
+    )
+    ssl_keyfile: str | None = Field(
+        default=None, description="Path to SSL private key file (optional)"
+    )
+
     # MLflow Configuration
     mlflow_tracking_uri: str = Field(
         ..., description="MLflow tracking server URI (required)"
