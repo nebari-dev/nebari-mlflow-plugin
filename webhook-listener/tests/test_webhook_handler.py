@@ -349,8 +349,9 @@ class TestHandleTagSetEvent:
     """Test cases for tag set event handler."""
 
     @pytest.mark.asyncio
+    @patch("src.webhook_handler.k8s_client")
     @patch("src.webhook_handler.mlflow_client")
-    async def test_handle_tag_set_event_deploy_true(self, mock_mlflow_client):
+    async def test_handle_tag_set_event_deploy_true(self, mock_mlflow_client, mock_k8s_client):
         """Test handling of deploy tag set to true."""
         # Mock MLflow client responses (need to use AsyncMock for async methods)
         mock_mlflow_client.get_model_version = AsyncMock(return_value={
@@ -369,6 +370,14 @@ class TestHandleTagSetEvent:
             return_value="gs://test/1/test-run-123/artifacts/model"
         )
 
+        # Mock Kubernetes client
+        mock_k8s_client.update_inference_service = AsyncMock(return_value={
+            "status": "updated",
+            "name": "iris-classifier-v3",
+            "namespace": "kserve-mlflow-models",
+            "uid": "test-uid-123",
+        })
+
         data = {
             "name": "iris-classifier",
             "version": "3",
@@ -378,15 +387,26 @@ class TestHandleTagSetEvent:
 
         result = await handle_tag_set_event(data)
 
-        assert result["action"] == "deploy_triggered"
+        assert result["action"] == "deployed"
         assert result["model_name"] == "iris-classifier"
         assert result["version"] == "3"
+        assert result["service_name"] == "iris-classifier-v3"
+        assert result["status"] == "updated"
         mock_mlflow_client.get_model_version.assert_called_once_with("iris-classifier", "3")
         mock_mlflow_client.get_run.assert_called_once_with("test-run-123")
+        mock_k8s_client.update_inference_service.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_handle_tag_set_event_deploy_false(self):
+    @patch("src.webhook_handler.k8s_client")
+    async def test_handle_tag_set_event_deploy_false(self, mock_k8s_client):
         """Test handling of deploy tag set to false."""
+        # Mock Kubernetes client
+        mock_k8s_client.delete_inference_service = AsyncMock(return_value={
+            "status": "deleted",
+            "name": "iris-classifier-v3",
+            "namespace": "kserve-mlflow-models",
+        })
+
         data = {
             "name": "iris-classifier",
             "version": "3",
@@ -396,7 +416,9 @@ class TestHandleTagSetEvent:
 
         result = await handle_tag_set_event(data)
 
-        assert result["action"] == "undeploy_triggered"
+        assert result["action"] == "undeployed"
+        assert result["service_name"] == "iris-classifier-v3"
+        mock_k8s_client.delete_inference_service.assert_called_once_with("iris-classifier-v3")
         assert result["model_name"] == "iris-classifier"
         assert result["version"] == "3"
 
@@ -465,8 +487,16 @@ class TestHandleTagDeletedEvent:
     """Test cases for tag deleted event handler."""
 
     @pytest.mark.asyncio
-    async def test_handle_tag_deleted_event_deploy_tag(self):
+    @patch("src.webhook_handler.k8s_client")
+    async def test_handle_tag_deleted_event_deploy_tag(self, mock_k8s_client):
         """Test handling of deploy tag deletion."""
+        # Mock Kubernetes client
+        mock_k8s_client.delete_inference_service = AsyncMock(return_value={
+            "status": "deleted",
+            "name": "iris-classifier-v3",
+            "namespace": "kserve-mlflow-models",
+        })
+
         data = {
             "name": "iris-classifier",
             "version": "3",
@@ -475,9 +505,11 @@ class TestHandleTagDeletedEvent:
 
         result = await handle_tag_deleted_event(data)
 
-        assert result["action"] == "undeploy_triggered"
+        assert result["action"] == "undeployed"
         assert result["model_name"] == "iris-classifier"
         assert result["version"] == "3"
+        assert result["service_name"] == "iris-classifier-v3"
+        mock_k8s_client.delete_inference_service.assert_called_once_with("iris-classifier-v3")
 
     @pytest.mark.asyncio
     async def test_handle_tag_deleted_event_non_deploy_tag(self):

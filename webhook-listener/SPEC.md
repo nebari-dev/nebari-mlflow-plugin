@@ -613,7 +613,7 @@ This task list provides an ordered approach to implementing the service, startin
   - `update_inference_service()`: Update existing InferenceService
   - Add error handling for K8s API failures
 
-- [ ] **5.2** Wire up Kubernetes client in webhook handler
+- [x] **5.2** Wire up Kubernetes client in webhook handler
   - In `handle_tag_set_event()`:
     - Check if tag_value == "true"
     - If yes: render template + create/update InferenceService
@@ -621,7 +621,7 @@ This task list provides an ordered approach to implementing the service, startin
   - In `handle_tag_deleted_event()`:
     - Delete InferenceService
 
-- [ ] **5.3** Test Kubernetes integration
+- [x] **5.3** Test Kubernetes integration
   - Unit tests with mocked K8s client
   - Test create/update/delete operations
   - Test idempotency (delete non-existent service should succeed)
@@ -630,12 +630,12 @@ This task list provides an ordered approach to implementing the service, startin
 
 **Goal:** Implement health checks and basic observability.
 
-- [ ] **6.1** Implement health check in `src/main.py`
+- [x] **6.1** Implement health check in `src/main.py`
   - Test MLflow connectivity (simple API call)
   - Test Kubernetes API connectivity
   - Return detailed status for each component
 
-- [ ] **6.2** Implement `/services` endpoint
+- [x] **6.2** Implement `/services` endpoint
   - List all managed InferenceServices
   - Return service details with status
 
@@ -678,16 +678,16 @@ This task list provides an ordered approach to implementing the service, startin
 
 **Goal:** Create Docker image for deployment.
 
-- [ ] **8.1** Create `Dockerfile`
+- [x] **8.1** Create `Dockerfile`
   - Multi-stage build for smaller image
   - Install dependencies
   - Copy source code
   - Set entrypoint to uvicorn
 
-- [ ] **8.2** Create `.dockerignore`
+- [x] **8.2** Create `.dockerignore`
   - Exclude tests, cache, etc.
 
-- [ ] **8.3** Test Docker build and run locally
+- [x] **8.3** Test Docker build and run locally
 
 ### Phase 9: Testing & Documentation
 

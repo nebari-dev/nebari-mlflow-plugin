@@ -10,6 +10,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 
 from src import __version__
 from src.config import settings
+from src.kubernetes_client import KubernetesClient
 from src.mlflow_client import MLflowClient
 from src.webhook_handler import (
     process_webhook_event,
@@ -163,27 +164,122 @@ async def health_check():
     """
     Health check endpoint for Kubernetes probes.
 
-    This is a STUB implementation that returns basic status.
-    Real implementation will be added in Phase 6.
+    Tests connectivity to MLflow and Kubernetes API and returns detailed status.
     """
-    return {
+    health_status = {
         "status": "healthy",
-        "mlflow_connected": True,  # STUB: Always returns True
-        "kubernetes_connected": True,  # STUB: Always returns True
+        "mlflow_connected": False,
+        "kubernetes_connected": False,
+        "details": {}
     }
+    
+    # Test MLflow connectivity
+    try:
+        mlflow_client = MLflowClient(tracking_uri=settings.mlflow_tracking_uri)
+        # Try to list webhooks as a simple connectivity test
+        webhooks = mlflow_client.list_webhooks()
+        health_status["mlflow_connected"] = True
+        health_status["details"]["mlflow"] = {
+            "tracking_uri": settings.mlflow_tracking_uri,
+            "webhook_count": len(webhooks)
+        }
+        logger.debug(f"MLflow health check passed - found {len(webhooks)} webhooks")
+    except Exception as e:
+        health_status["status"] = "unhealthy"
+        health_status["details"]["mlflow_error"] = str(e)
+        logger.warning(f"MLflow health check failed: {e}")
+    
+    # Test Kubernetes connectivity
+    try:
+        k8s_client = KubernetesClient(
+            namespace=settings.kube_namespace,
+            in_cluster=settings.kube_in_cluster
+        )
+        # Try to list InferenceServices as a connectivity test
+        # Use the managed-by label to only count services managed by this webhook
+        services = await k8s_client.list_inference_services(
+            label_selector="managed-by=mlflow-kserve-webhook-listener"
+        )
+        health_status["kubernetes_connected"] = True
+        health_status["details"]["kubernetes"] = {
+            "namespace": settings.kube_namespace,
+            "in_cluster": settings.kube_in_cluster,
+            "managed_services_count": len(services)
+        }
+        logger.debug(f"Kubernetes health check passed - found {len(services)} managed services")
+    except Exception as e:
+        health_status["status"] = "unhealthy"
+        health_status["details"]["kubernetes_error"] = str(e)
+        logger.warning(f"Kubernetes health check failed: {e}")
+    
+    # Overall health is only healthy if both connections work
+    if not (health_status["mlflow_connected"] and health_status["kubernetes_connected"]):
+        health_status["status"] = "unhealthy"
+    
+    return health_status
 
 
 @app.get("/services")
 async def list_services():
     """
     List all managed InferenceServices.
-
-    This is a STUB implementation that returns empty list.
-    Real implementation will be added in Phase 6.
+    
+    Returns a list of InferenceServices that are managed by this webhook listener,
+    along with their current status and metadata.
     """
-    return {
-        "services": []  # STUB: Empty list
-    }
+    try:
+        k8s_client = KubernetesClient(
+            namespace=settings.kube_namespace,
+            in_cluster=settings.kube_in_cluster
+        )
+        
+        # List InferenceServices managed by this webhook
+        raw_services = await k8s_client.list_inference_services(
+            label_selector="managed-by=mlflow-kserve-webhook-listener"
+        )
+        
+        # Transform the raw service data into a more user-friendly format
+        services = []
+        for svc in raw_services:
+            labels = svc.get("labels", {})
+            status = svc.get("status", {})
+            
+            # Extract ready condition from status
+            ready_status = "Unknown"
+            conditions = status.get("conditions", [])
+            for condition in conditions:
+                if condition.get("type") == "Ready":
+                    ready_status = "Ready" if condition.get("status") == "True" else "Not Ready"
+                    break
+            
+            # Extract URL if available
+            url = status.get("url", None)
+            
+            services.append({
+                "name": svc["name"],
+                "namespace": svc["namespace"],
+                "model_name": labels.get("mlflow.model", "unknown"),
+                "model_version": labels.get("mlflow.version", "unknown"),
+                "run_id": labels.get("mlflow.run-id", "unknown"),
+                "status": ready_status,
+                "url": url,
+                "creation_timestamp": svc.get("creation_timestamp"),
+            })
+        
+        logger.info(f"Listed {len(services)} managed InferenceServices")
+        
+        return {
+            "services": services,
+            "total": len(services),
+            "namespace": settings.kube_namespace
+        }
+        
+    except Exception as e:
+        logger.error(f"Error listing InferenceServices: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing InferenceServices: {str(e)}"
+        )
 
 
 def main():

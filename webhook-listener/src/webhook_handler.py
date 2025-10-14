@@ -9,13 +9,24 @@ import time
 from typing import Any, Dict
 
 from src.config import settings
+from src.kubernetes_client import (
+    KubernetesClient,
+    KubernetesClientError,
+    InferenceServiceAlreadyExistsError,
+)
 from src.mlflow_client import MLflowClient
-from src.templates import render_inference_service
+from src.templates import generate_inference_service_name, render_inference_service
 
 logger = logging.getLogger(__name__)
 
 # Initialize MLflow client
 mlflow_client = MLflowClient(tracking_uri=settings.mlflow_tracking_uri)
+
+# Initialize Kubernetes client
+k8s_client = KubernetesClient(
+    namespace=settings.kube_namespace,
+    in_cluster=settings.kube_in_cluster,
+)
 
 
 def verify_mlflow_signature(
@@ -363,6 +374,9 @@ async def handle_tag_set_event(data: dict[str, Any]) -> dict[str, Any]:
                 namespace=settings.kube_namespace,
             )
 
+            # Generate the InferenceService name
+            service_name = generate_inference_service_name(model_name, version)
+
             # Log the manifest
             indented_manifest = textwrap.indent(manifest, prefix="\t")
             logger.info(
@@ -370,18 +384,73 @@ async def handle_tag_set_event(data: dict[str, Any]) -> dict[str, Any]:
                 extra={
                     "model_name": model_name,
                     "version": version,
+                    "service_name": service_name,
                     "manifest": manifest,
                 },
             )
 
-            # TODO: Phase 5 - Deploy to Kubernetes
-            return {
-                "action": "deploy_triggered",
-                "model_name": model_name,
-                "version": version,
-                "manifest_generated": True,
-                "message": "Manifest generated successfully. Kubernetes deployment not yet implemented (Phase 5)",
-            }
+            # Deploy to Kubernetes
+            try:
+                # Use update (which creates if doesn't exist)
+                result = await k8s_client.update_inference_service(service_name, manifest)
+
+                logger.info(
+                    f"Successfully deployed InferenceService {service_name} for {model_name} v{version}",
+                    extra={
+                        "model_name": model_name,
+                        "version": version,
+                        "service_name": service_name,
+                        "k8s_result": result,
+                    },
+                )
+
+                return {
+                    "action": "deployed",
+                    "model_name": model_name,
+                    "version": version,
+                    "service_name": service_name,
+                    "namespace": settings.kube_namespace,
+                    "status": result.get("status"),
+                    "uid": result.get("uid"),
+                }
+
+            except InferenceServiceAlreadyExistsError:
+                # This shouldn't happen since we use update, but handle it gracefully
+                logger.warning(
+                    f"InferenceService {service_name} already exists, this is unexpected with update",
+                    extra={
+                        "model_name": model_name,
+                        "version": version,
+                        "service_name": service_name,
+                    },
+                )
+                return {
+                    "action": "deployed",
+                    "model_name": model_name,
+                    "version": version,
+                    "service_name": service_name,
+                    "namespace": settings.kube_namespace,
+                    "note": "already_exists",
+                }
+
+            except KubernetesClientError as e:
+                logger.error(
+                    f"Kubernetes error deploying {service_name}: {e}",
+                    extra={
+                        "model_name": model_name,
+                        "version": version,
+                        "service_name": service_name,
+                        "error": str(e),
+                    },
+                    exc_info=True,
+                )
+                return {
+                    "action": "error",
+                    "model_name": model_name,
+                    "version": version,
+                    "service_name": service_name,
+                    "message": f"Kubernetes deployment failed: {str(e)}",
+                }
 
         except Exception as e:
             logger.error(
@@ -409,13 +478,52 @@ async def handle_tag_set_event(data: dict[str, Any]) -> dict[str, Any]:
                 "action": "undeploy",
             },
         )
-        # TODO: Phase 5 - Delete InferenceService from Kubernetes
-        return {
-            "action": "undeploy_triggered",
-            "model_name": model_name,
-            "version": version,
-            "message": "Undeployment logic not yet implemented (Phase 5)",
-        }
+
+        # Generate the InferenceService name
+        service_name = generate_inference_service_name(model_name, version)
+
+        # Delete InferenceService from Kubernetes
+        try:
+            result = await k8s_client.delete_inference_service(service_name)
+
+            logger.info(
+                f"Successfully deleted InferenceService {service_name} for {model_name} v{version}",
+                extra={
+                    "model_name": model_name,
+                    "version": version,
+                    "service_name": service_name,
+                    "k8s_result": result,
+                },
+            )
+
+            return {
+                "action": "undeployed",
+                "model_name": model_name,
+                "version": version,
+                "service_name": service_name,
+                "namespace": settings.kube_namespace,
+                "status": result.get("status"),
+                "note": result.get("note"),
+            }
+
+        except KubernetesClientError as e:
+            logger.error(
+                f"Kubernetes error deleting {service_name}: {e}",
+                extra={
+                    "model_name": model_name,
+                    "version": version,
+                    "service_name": service_name,
+                    "error": str(e),
+                },
+                exc_info=True,
+            )
+            return {
+                "action": "error",
+                "model_name": model_name,
+                "version": version,
+                "service_name": service_name,
+                "message": f"Kubernetes deletion failed: {e!s}",
+            }
 
     else:
         logger.warning(
@@ -486,10 +594,49 @@ async def handle_tag_deleted_event(data: dict[str, Any]) -> dict[str, Any]:
             "action": "undeploy",
         },
     )
-    # TODO: Phase 5 - Delete InferenceService from Kubernetes
-    return {
-        "action": "undeploy_triggered",
-        "model_name": model_name,
-        "version": version,
-        "message": "Undeployment logic not yet implemented (Phase 5)",
-    }
+
+    # Generate the InferenceService name
+    service_name = generate_inference_service_name(model_name, version)
+
+    # Delete InferenceService from Kubernetes
+    try:
+        result = await k8s_client.delete_inference_service(service_name)
+
+        logger.info(
+            f"Successfully deleted InferenceService {service_name} for {model_name} v{version}",
+            extra={
+                "model_name": model_name,
+                "version": version,
+                "service_name": service_name,
+                "k8s_result": result,
+            },
+        )
+
+        return {
+            "action": "undeployed",
+            "model_name": model_name,
+            "version": version,
+            "service_name": service_name,
+            "namespace": settings.kube_namespace,
+            "status": result.get("status"),
+            "note": result.get("note"),
+        }
+
+    except KubernetesClientError as e:
+        logger.error(
+            f"Kubernetes error deleting {service_name}: {e}",
+            extra={
+                "model_name": model_name,
+                "version": version,
+                "service_name": service_name,
+                "error": str(e),
+            },
+            exc_info=True,
+        )
+        return {
+            "action": "error",
+            "model_name": model_name,
+            "version": version,
+            "service_name": service_name,
+            "message": f"Kubernetes deletion failed: {e!s}",
+        }

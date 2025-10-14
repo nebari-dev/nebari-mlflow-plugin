@@ -105,10 +105,10 @@ class TestRenderInferenceService:
         assert "kind: InferenceService" in result
         assert "name: test-model-v1" in result
         assert "namespace: default" in result
-        assert "mlflow.org/model-name: test-model" in result
+        assert 'mlflow.org/model-name: "test-model"' in result
         assert 'mlflow.org/model-version: "1"' in result
-        assert "mlflow.org/run-id: run123" in result
-        assert "mlflow.org/experiment-id: exp456" in result
+        assert 'mlflow.org/run-id: "run123"' in result
+        assert 'mlflow.org/experiment-id: "exp456"' in result
         assert "storageUri: s3://bucket/path" in result
         assert "managed-by: nebari-mlflow-webhook-listener" in result
 
@@ -153,8 +153,8 @@ class TestRenderInferenceService:
 
         # Name should be sanitized
         assert "name: my-model-v2-0" in result
-        # But labels should preserve original values
-        assert "mlflow.org/model-name: my_model" in result
+        # But labels should preserve original values (now quoted)
+        assert 'mlflow.org/model-name: "my_model"' in result
         assert 'mlflow.org/model-version: "2.0"' in result
 
     def test_template_not_found_error(self, tmp_path, monkeypatch):

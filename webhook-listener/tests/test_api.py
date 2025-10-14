@@ -6,8 +6,21 @@ import json
 from unittest.mock import AsyncMock, patch
 
 
-def test_health_endpoint(client):
-    """Test the /health endpoint returns expected stub response."""
+@patch("src.main.KubernetesClient")
+@patch("src.main.MLflowClient")
+def test_health_endpoint(mock_mlflow_client, mock_k8s_client, client):
+    """Test the /health endpoint returns proper health status."""
+    # Mock MLflow connectivity success
+    mock_mlflow_instance = mock_mlflow_client.return_value
+    mock_mlflow_instance.list_webhooks.return_value = ["webhook1", "webhook2"]
+    
+    # Mock Kubernetes connectivity success
+    mock_k8s_instance = mock_k8s_client.return_value
+    mock_k8s_instance.list_inference_services = AsyncMock(return_value=[
+        {"name": "service1", "labels": {}},
+        {"name": "service2", "labels": {}}
+    ])
+    
     response = client.get("/health")
 
     assert response.status_code == 200
@@ -15,10 +28,127 @@ def test_health_endpoint(client):
     assert data["status"] == "healthy"
     assert data["mlflow_connected"] is True
     assert data["kubernetes_connected"] is True
+    assert "details" in data
+    assert data["details"]["mlflow"]["webhook_count"] == 2
+    assert data["details"]["kubernetes"]["managed_services_count"] == 2
 
 
-def test_services_endpoint(client):
-    """Test the /services endpoint returns empty list (stub)."""
+@patch("src.main.KubernetesClient")
+@patch("src.main.MLflowClient")
+def test_health_endpoint_mlflow_failure(mock_mlflow_client, mock_k8s_client, client):
+    """Test the /health endpoint when MLflow is unavailable."""
+    # Mock MLflow connectivity failure
+    mock_mlflow_instance = mock_mlflow_client.return_value
+    mock_mlflow_instance.list_webhooks.side_effect = Exception("MLflow connection failed")
+    
+    # Mock Kubernetes connectivity success
+    mock_k8s_instance = mock_k8s_client.return_value
+    mock_k8s_instance.list_inference_services = AsyncMock(return_value=[])
+    
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "unhealthy"
+    assert data["mlflow_connected"] is False
+    assert data["kubernetes_connected"] is True
+    assert "mlflow_error" in data["details"]
+
+
+@patch("src.main.KubernetesClient")
+@patch("src.main.MLflowClient")
+def test_health_endpoint_kubernetes_failure(mock_mlflow_client, mock_k8s_client, client):
+    """Test the /health endpoint when Kubernetes is unavailable."""
+    # Mock MLflow connectivity success
+    mock_mlflow_instance = mock_mlflow_client.return_value
+    mock_mlflow_instance.list_webhooks.return_value = []
+    
+    # Mock Kubernetes connectivity failure
+    mock_k8s_client.side_effect = Exception("Kubernetes connection failed")
+    
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "unhealthy"
+    assert data["mlflow_connected"] is True
+    assert data["kubernetes_connected"] is False
+    assert "kubernetes_error" in data["details"]
+
+
+@patch("src.main.KubernetesClient")
+def test_services_endpoint(mock_k8s_client, client):
+    """Test the /services endpoint returns list of managed InferenceServices."""
+    # Mock Kubernetes client to return sample services
+    mock_k8s_instance = mock_k8s_client.return_value
+    mock_k8s_instance.list_inference_services = AsyncMock(return_value=[
+        {
+            "name": "mlflow-model1-v1",
+            "namespace": "kserve-mlflow-models",
+            "labels": {
+                "mlflow.model": "model1",
+                "mlflow.version": "1",
+                "mlflow.run-id": "run123"
+            },
+            "status": {
+                "conditions": [
+                    {"type": "Ready", "status": "True"}
+                ],
+                "url": "https://model1.example.com"
+            },
+            "creation_timestamp": "2024-01-01T00:00:00Z"
+        },
+        {
+            "name": "mlflow-model2-v2",
+            "namespace": "kserve-mlflow-models",
+            "labels": {
+                "mlflow.model": "model2",
+                "mlflow.version": "2",
+                "mlflow.run-id": "run456"
+            },
+            "status": {
+                "conditions": [
+                    {"type": "Ready", "status": "False"}
+                ]
+            },
+            "creation_timestamp": "2024-01-02T00:00:00Z"
+        }
+    ])
+    
+    response = client.get("/services")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "services" in data
+    assert isinstance(data["services"], list)
+    assert len(data["services"]) == 2
+    assert data["total"] == 2
+    
+    # Check first service
+    service1 = data["services"][0]
+    assert service1["name"] == "mlflow-model1-v1"
+    assert service1["model_name"] == "model1"
+    assert service1["model_version"] == "1"
+    assert service1["run_id"] == "run123"
+    assert service1["status"] == "Ready"
+    assert service1["url"] == "https://model1.example.com"
+    
+    # Check second service
+    service2 = data["services"][1]
+    assert service2["name"] == "mlflow-model2-v2"
+    assert service2["model_name"] == "model2"
+    assert service2["model_version"] == "2"
+    assert service2["status"] == "Not Ready"
+    assert service2["url"] is None
+
+
+@patch("src.main.KubernetesClient")
+def test_services_endpoint_empty_list(mock_k8s_client, client):
+    """Test the /services endpoint when no services are deployed."""
+    # Mock Kubernetes client to return empty list
+    mock_k8s_instance = mock_k8s_client.return_value
+    mock_k8s_instance.list_inference_services = AsyncMock(return_value=[])
+    
     response = client.get("/services")
 
     assert response.status_code == 200
@@ -26,6 +156,21 @@ def test_services_endpoint(client):
     assert "services" in data
     assert isinstance(data["services"], list)
     assert len(data["services"]) == 0
+    assert data["total"] == 0
+
+
+@patch("src.main.KubernetesClient")
+def test_services_endpoint_error_handling(mock_k8s_client, client):
+    """Test the /services endpoint handles errors gracefully."""
+    # Mock Kubernetes client to raise an exception
+    mock_k8s_instance = mock_k8s_client.return_value
+    mock_k8s_instance.list_inference_services = AsyncMock(side_effect=Exception("Kubernetes API error"))
+    
+    response = client.get("/services")
+
+    assert response.status_code == 500
+    data = response.json()
+    assert "Error listing InferenceServices" in data["detail"]
 
 
 class TestWebhookEndpointSignatureVerification:
@@ -297,7 +442,7 @@ class TestWebhookEndpointEventRouting:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
-        assert data["handler_result"]["action"] == "deploy_triggered"
+        assert data["handler_result"]["action"] == "deployed"
         assert data["handler_result"]["model_name"] == "test-model"
         assert data["handler_result"]["version"] == "1"
 
@@ -335,7 +480,7 @@ class TestWebhookEndpointEventRouting:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
-        assert data["handler_result"]["action"] == "undeploy_triggered"
+        assert data["handler_result"]["action"] == "undeployed"
 
     @patch("src.webhook_handler.time.time")
     def test_webhook_deploy_tag_deleted(self, mock_time, client):
@@ -370,7 +515,7 @@ class TestWebhookEndpointEventRouting:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
-        assert data["handler_result"]["action"] == "undeploy_triggered"
+        assert data["handler_result"]["action"] == "undeployed"
 
     @patch("src.webhook_handler.time.time")
     def test_webhook_non_deploy_tag_ignored(self, mock_time, client):
