@@ -19,6 +19,6 @@ patches:
 
 # Override the image to use the OpenTeams build
 images:
-- digest: sha256:5cfe5a90175a9d4e19052cf41261149fda6e3ccee8b0cd2e689eb66ef12d697f
+- digest: sha256:20ecd87c9a310295b52da9b853a312fba65afb2482d9a01f3f62e398a714881a
   name: ghcr.io/nebari-dev/mlflow-kserve-webhook-listener
   newName: quay.io/openteams/mlflow-webhook-listener

@@ -1,0 +1,20 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: mlflow-webhook-listener-ingressroute
+  namespace: prod
+spec:
+  entryPoints:
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`nebari.openteams.ai`) && PathPrefix(`/mlflow-webhook`)
+    priority: 100
+    middlewares:
+    - name: mlflow-webhook-stripprefix
+      namespace: prod
+    services:
+    - name: mlflow-kserve-webhook-listener
+      namespace: prod
+      port: 80

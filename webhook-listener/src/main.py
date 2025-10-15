@@ -35,13 +35,19 @@ async def lifespan(_app: FastAPI):
     logger.info("Starting MLflow KServe Webhook Listener")
     logger.info(f"MLflow Tracking URI: {settings.mlflow_tracking_uri}")
     logger.info(f"Kubernetes Namespace: {settings.kube_namespace}")
-    logger.info(f"Storage URI Base: {settings.storage_uri_base}")
     logger.info(f"Webhook URL: {settings.mlflow_webhook_url}")
 
     # Initialize MLflow client and ensure webhook is registered
     mlflow_client = MLflowClient(tracking_uri=settings.mlflow_tracking_uri)
 
-    logger.info("Checking webhook registration...")
+    logger.info("Checking for existing webhooks...")
+    # Delete any existing webhook with the same URL to ensure we use the current secret
+    # This handles cases where the webhook secret may have changed
+    deleted = mlflow_client.delete_webhook_by_url(settings.mlflow_webhook_url)
+    if deleted:
+        logger.info(f"Deleted existing webhook with URL: {settings.mlflow_webhook_url}")
+
+    logger.info("Registering webhook...")
     was_created, webhook = mlflow_client.ensure_webhook_registered(
         name=settings.mlflow_webhook_name,
         url=settings.mlflow_webhook_url,

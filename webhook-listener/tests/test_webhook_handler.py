@@ -359,16 +359,13 @@ class TestHandleTagSetEvent:
             "version": "3",
             "run_id": "test-run-123",
             "status": "READY",
-            "source": "gs://test/1/test-run-123/artifacts/model",
+            "source": "mlflow-artifacts:/1/models/m-abc123/artifacts",
         })
         mock_mlflow_client.get_run = AsyncMock(return_value={
             "run_id": "test-run-123",
             "experiment_id": "1",
-            "artifact_uri": "gs://test/1/test-run-123/artifacts",
+            "artifact_uri": "mlflow-artifacts:/1/abc123/artifacts",
         })
-        mock_mlflow_client.build_storage_uri = AsyncMock(
-            return_value="gs://test/1/test-run-123/artifacts/model"
-        )
 
         # Mock Kubernetes client
         mock_k8s_client.update_inference_service = AsyncMock(return_value={

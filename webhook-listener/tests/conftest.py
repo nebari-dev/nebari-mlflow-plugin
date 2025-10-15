@@ -14,7 +14,6 @@ def test_env(monkeypatch):
     monkeypatch.setenv("MLFLOW_KSERVE_MLFLOW_TRACKING_URI", "http://test-mlflow:5000")
     monkeypatch.setenv("MLFLOW_KSERVE_MLFLOW_WEBHOOK_SECRET", "test-secret")
     monkeypatch.setenv("MLFLOW_KSERVE_MLFLOW_WEBHOOK_URL", "http://test-listener:8000/webhook")
-    monkeypatch.setenv("MLFLOW_KSERVE_STORAGE_URI_BASE", "gs://test-bucket")
     monkeypatch.setenv("MLFLOW_KSERVE_KUBE_IN_CLUSTER", "false")
     monkeypatch.setenv("MLFLOW_KSERVE_LOG_LEVEL", "DEBUG")
 
@@ -33,6 +32,7 @@ def client(test_env):
 
     with patch("src.main.MLflowClient") as mock_mlflow_client:
         mock_client_instance = MagicMock()
+        mock_client_instance.delete_webhook_by_url.return_value = False  # No existing webhook to delete
         mock_client_instance.ensure_webhook_registered.return_value = (True, mock_webhook)
         mock_mlflow_client.return_value = mock_client_instance
 

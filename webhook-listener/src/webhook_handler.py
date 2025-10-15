@@ -325,15 +325,11 @@ async def handle_tag_set_event(data: dict[str, Any]) -> dict[str, Any]:
 
             model_version = await mlflow_client.get_model_version(model_name, version)
             run_id = model_version["run_id"]
+            storage_uri = model_version["source"]
 
             # Get run details to fetch experiment_id
             run_details = await mlflow_client.get_run(run_id)
             experiment_id = run_details["experiment_id"]
-
-            # Build storage URI using MLflow client
-            storage_uri = await mlflow_client.build_storage_uri(
-                model_name, version, settings.storage_uri_base
-            )
 
             logger.info(
                 f"Successfully fetched model details for {model_name} v{version}",

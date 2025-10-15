@@ -13,7 +13,6 @@ def test_settings_loads_from_env(test_env):
     assert settings.mlflow_tracking_uri == "http://test-mlflow:5000"
     assert settings.mlflow_webhook_secret == "test-secret"
     assert settings.mlflow_webhook_url == "http://test-listener:8000/webhook"
-    assert settings.storage_uri_base == "gs://test-bucket"
     assert settings.kube_in_cluster is False
     assert settings.log_level == "DEBUG"
 
@@ -37,7 +36,6 @@ def test_settings_requires_tracking_uri(monkeypatch):
     monkeypatch.delenv("MLFLOW_KSERVE_MLFLOW_TRACKING_URI", raising=False)
     monkeypatch.setenv("MLFLOW_KSERVE_MLFLOW_WEBHOOK_SECRET", "secret")
     monkeypatch.setenv("MLFLOW_KSERVE_MLFLOW_WEBHOOK_URL", "http://test:8000/webhook")
-    monkeypatch.setenv("MLFLOW_KSERVE_STORAGE_URI_BASE", "gs://bucket")
 
     from src.config import Settings
 
@@ -48,36 +46,21 @@ def test_settings_requires_tracking_uri(monkeypatch):
     assert any(e["loc"] == ("mlflow_tracking_uri",) for e in errors)
 
 
-def test_settings_requires_webhook_secret(monkeypatch):
-    """Test that mlflow_webhook_secret is required."""
+def test_settings_auto_generates_webhook_secret(monkeypatch):
+    """Test that mlflow_webhook_secret is auto-generated if not provided."""
     monkeypatch.delenv("MLFLOW_KSERVE_MLFLOW_WEBHOOK_SECRET", raising=False)
     monkeypatch.setenv("MLFLOW_KSERVE_MLFLOW_TRACKING_URI", "http://mlflow:5000")
     monkeypatch.setenv("MLFLOW_KSERVE_MLFLOW_WEBHOOK_URL", "http://test:8000/webhook")
-    monkeypatch.setenv("MLFLOW_KSERVE_STORAGE_URI_BASE", "gs://bucket")
 
     from src.config import Settings
 
-    with pytest.raises(ValidationError) as exc_info:
-        Settings(_env_file=None)
-
-    errors = exc_info.value.errors()
-    assert any(e["loc"] == ("mlflow_webhook_secret",) for e in errors)
-
-
-def test_settings_requires_storage_uri_base(monkeypatch):
-    """Test that storage_uri_base is required."""
-    monkeypatch.delenv("MLFLOW_KSERVE_STORAGE_URI_BASE", raising=False)
-    monkeypatch.setenv("MLFLOW_KSERVE_MLFLOW_TRACKING_URI", "http://mlflow:5000")
-    monkeypatch.setenv("MLFLOW_KSERVE_MLFLOW_WEBHOOK_SECRET", "secret")
-    monkeypatch.setenv("MLFLOW_KSERVE_MLFLOW_WEBHOOK_URL", "http://test:8000/webhook")
-
-    from src.config import Settings
-
-    with pytest.raises(ValidationError) as exc_info:
-        Settings(_env_file=None)
-
-    errors = exc_info.value.errors()
-    assert any(e["loc"] == ("storage_uri_base",) for e in errors)
+    settings = Settings(_env_file=None)
+    
+    # Should have generated a secret
+    assert settings.mlflow_webhook_secret is not None
+    assert len(settings.mlflow_webhook_secret) > 0
+    # Should be a reasonably long secret (at least 32 chars since we use token_urlsafe(32))
+    assert len(settings.mlflow_webhook_secret) >= 32
 
 
 def test_settings_requires_webhook_url(monkeypatch):
@@ -85,7 +68,6 @@ def test_settings_requires_webhook_url(monkeypatch):
     monkeypatch.delenv("MLFLOW_KSERVE_MLFLOW_WEBHOOK_URL", raising=False)
     monkeypatch.setenv("MLFLOW_KSERVE_MLFLOW_TRACKING_URI", "http://mlflow:5000")
     monkeypatch.setenv("MLFLOW_KSERVE_MLFLOW_WEBHOOK_SECRET", "secret")
-    monkeypatch.setenv("MLFLOW_KSERVE_STORAGE_URI_BASE", "gs://bucket")
 
     from src.config import Settings
 

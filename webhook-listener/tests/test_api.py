@@ -6,22 +6,31 @@ import json
 from unittest.mock import AsyncMock, patch
 
 
+def test_health_endpoint(client):
+    """Test the /health endpoint returns simple health status."""
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
+
+
 @patch("src.main.KubernetesClient")
 @patch("src.main.MLflowClient")
-def test_health_endpoint(mock_mlflow_client, mock_k8s_client, client):
-    """Test the /health endpoint returns proper health status."""
+def test_detailed_health_endpoint(mock_mlflow_client, mock_k8s_client, client):
+    """Test the /health/detailed endpoint returns detailed health status."""
     # Mock MLflow connectivity success
     mock_mlflow_instance = mock_mlflow_client.return_value
     mock_mlflow_instance.list_webhooks.return_value = ["webhook1", "webhook2"]
-    
+
     # Mock Kubernetes connectivity success
     mock_k8s_instance = mock_k8s_client.return_value
     mock_k8s_instance.list_inference_services = AsyncMock(return_value=[
         {"name": "service1", "labels": {}},
         {"name": "service2", "labels": {}}
     ])
-    
-    response = client.get("/health")
+
+    response = client.get("/health/detailed")
 
     assert response.status_code == 200
     data = response.json()
@@ -35,17 +44,17 @@ def test_health_endpoint(mock_mlflow_client, mock_k8s_client, client):
 
 @patch("src.main.KubernetesClient")
 @patch("src.main.MLflowClient")
-def test_health_endpoint_mlflow_failure(mock_mlflow_client, mock_k8s_client, client):
-    """Test the /health endpoint when MLflow is unavailable."""
+def test_detailed_health_endpoint_mlflow_failure(mock_mlflow_client, mock_k8s_client, client):
+    """Test the /health/detailed endpoint when MLflow is unavailable."""
     # Mock MLflow connectivity failure
     mock_mlflow_instance = mock_mlflow_client.return_value
     mock_mlflow_instance.list_webhooks.side_effect = Exception("MLflow connection failed")
-    
+
     # Mock Kubernetes connectivity success
     mock_k8s_instance = mock_k8s_client.return_value
     mock_k8s_instance.list_inference_services = AsyncMock(return_value=[])
-    
-    response = client.get("/health")
+
+    response = client.get("/health/detailed")
 
     assert response.status_code == 200
     data = response.json()
@@ -57,16 +66,16 @@ def test_health_endpoint_mlflow_failure(mock_mlflow_client, mock_k8s_client, cli
 
 @patch("src.main.KubernetesClient")
 @patch("src.main.MLflowClient")
-def test_health_endpoint_kubernetes_failure(mock_mlflow_client, mock_k8s_client, client):
-    """Test the /health endpoint when Kubernetes is unavailable."""
+def test_detailed_health_endpoint_kubernetes_failure(mock_mlflow_client, mock_k8s_client, client):
+    """Test the /health/detailed endpoint when Kubernetes is unavailable."""
     # Mock MLflow connectivity success
     mock_mlflow_instance = mock_mlflow_client.return_value
     mock_mlflow_instance.list_webhooks.return_value = []
-    
+
     # Mock Kubernetes connectivity failure
     mock_k8s_client.side_effect = Exception("Kubernetes connection failed")
-    
-    response = client.get("/health")
+
+    response = client.get("/health/detailed")
 
     assert response.status_code == 200
     data = response.json()
@@ -400,16 +409,13 @@ class TestWebhookEndpointEventRouting:
             "version": "1",
             "run_id": "test-run-123",
             "status": "READY",
-            "source": "gs://test/1/test-run-123/artifacts/model",
+            "source": "file:///mlflow/artifacts/1/test-run-123/artifacts/model",
         })
         mock_mlflow_client.get_run = AsyncMock(return_value={
             "run_id": "test-run-123",
             "experiment_id": "1",
-            "artifact_uri": "gs://test/1/test-run-123/artifacts",
+            "artifact_uri": "file:///mlflow/artifacts/1/test-run-123/artifacts",
         })
-        mock_mlflow_client.build_storage_uri = AsyncMock(
-            return_value="file:///mlflow/artifacts/1/test-run-123/artifacts/model"
-        )
 
         payload = {
             "entity": "model_version_tag",

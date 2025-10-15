@@ -1,7 +1,12 @@
 """Configuration module using Pydantic Settings."""
 
-from pydantic import Field
+import logging
+import secrets
+
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -23,8 +28,9 @@ class Settings(BaseSettings):
     mlflow_tracking_uri: str = Field(
         ..., description="MLflow tracking server URI (required)"
     )
-    mlflow_webhook_secret: str = Field(
-        ..., description="Secret for verifying MLflow webhook signatures (required)"
+    mlflow_webhook_secret: str | None = Field(
+        default=None,
+        description="Secret for verifying MLflow webhook signatures (auto-generated if not provided)"
     )
     mlflow_webhook_url: str = Field(
         ..., description="URL where this service receives webhooks (required)"
@@ -47,9 +53,6 @@ class Settings(BaseSettings):
     inference_service_template: str = Field(
         default="templates/inference_service.yaml.j2",
         description="Path to InferenceService Jinja2 template",
-    )
-    storage_uri_base: str = Field(
-        ..., description="Base URI for model storage (e.g., gs://bucket-name)"
     )
 
     # Optional: Resource limits
@@ -76,6 +79,18 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @field_validator("mlflow_webhook_secret", mode="before")
+    @classmethod
+    def generate_webhook_secret(cls, v):
+        """Generate a secure random secret if none provided."""
+        if v is None or v == "":
+            # Generate a cryptographically secure random secret
+            # Using 32 bytes (256 bits) for strong security
+            generated_secret = secrets.token_urlsafe(32)
+            logger.info("Webhook secret for HMAC verification auto-generated")
+            return generated_secret
+        return v
 
 
 # Global settings instance

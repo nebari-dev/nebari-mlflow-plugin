@@ -1,7 +1,6 @@
 """MLflow API client for fetching model details."""
 
 import logging
-import re
 from typing import Any
 
 from mlflow import MlflowClient as MLflowSDKClient
@@ -99,59 +98,41 @@ class MLflowClient:
             logger.error(f"Failed to fetch run {run_id}: {e}")
             raise
 
-    async def build_storage_uri(
-        self, model_name: str, version: str, storage_uri_base: str | None = None
+    async def get_storage_uri(
+        self, model_name: str, version: str
     ) -> str:
         """
-        Construct the full storage URI for model artifacts.
+        Get the storage URI for model artifacts from the model version.
 
-        This method fetches the model version details and run information to build
-        the complete storage URI where the model artifacts are stored.
+        The storage URI is obtained directly from the model version's source field,
+        which MLflow populates with the location of the model artifacts.
 
         Args:
             model_name: Name of the registered model
             version: Version number of the model
-            storage_uri_base: Optional base URI to override the artifact URI from MLflow.
-                            If not provided, uses the artifact URI from the run.
 
         Returns:
-            Full storage URI path to the model artifacts
+            Storage URI path to the model artifacts (e.g., 'mlflow-artifacts:/1/models/.../artifacts')
 
         Raises:
-            Exception: If the storage URI cannot be constructed
+            Exception: If the model version cannot be fetched or has no source
         """
         try:
-            logger.info(f"Building storage URI for {model_name} v{version}")
+            logger.info(f"Getting storage URI for {model_name} v{version}")
 
-            # Fetch model version to get run_id and source
+            # Fetch model version to get source URI
             model_version = await self.get_model_version(model_name, version)
-            run_id = model_version["run_id"]
+            storage_uri = model_version["source"]
 
-            # If storage_uri_base is provided, use it; otherwise fetch from run
-            if storage_uri_base:
-                # Use the provided base URI and append the run-specific path
-                run = await self.get_run(run_id)
-                artifact_uri = run["artifact_uri"]
-
-                # Extract the path after the base URI from artifact_uri
-                # artifact_uri format: <base>/<experiment_id>/<run_id>/artifacts
-                # We want to construct: <storage_uri_base>/<experiment_id>/<run_id>/artifacts/model
-                match = re.search(r"/(\d+/[a-f0-9]+/artifacts)", artifact_uri)
-                if match:
-                    relative_path = match.group(1)
-                    storage_uri = f"{storage_uri_base.rstrip('/')}/{relative_path}/model"
-                else:
-                    # Fallback: use model source if pattern doesn't match
-                    storage_uri = model_version["source"]
-            else:
-                # Use the source directly from model version
-                storage_uri = model_version["source"]
+            if not storage_uri:
+                error_msg = f"Model version {model_name} v{version} has no source URI"
+                raise ValueError(error_msg)
 
             logger.debug(f"Storage URI: {storage_uri}")
             return storage_uri
 
         except Exception as e:
-            logger.error(f"Failed to build storage URI for {model_name} v{version}: {e}")
+            logger.error(f"Failed to get storage URI for {model_name} v{version}: {e}")
             raise
 
     def list_webhooks(self) -> list[Any]:
@@ -251,6 +232,42 @@ class MLflowClient:
             return test_result
         except Exception as e:
             logger.error(f"Error testing webhook: {e}")
+            raise
+
+    def delete_webhook(self, webhook_id: str) -> None:
+        """
+        Delete a webhook.
+
+        Args:
+            webhook_id: ID of the webhook to delete
+        """
+        try:
+            logger.info(f"Deleting webhook {webhook_id}")
+            self._client.delete_webhook(webhook_id)
+            logger.info(f"Webhook {webhook_id} deleted successfully")
+        except Exception as e:
+            logger.error(f"Error deleting webhook {webhook_id}: {e}")
+            raise
+
+    def delete_webhook_by_url(self, url: str) -> bool:
+        """
+        Delete a webhook by its URL.
+
+        Args:
+            url: The webhook URL to search for and delete
+
+        Returns:
+            True if a webhook was found and deleted, False otherwise
+        """
+        try:
+            webhook = self.get_webhook_by_url(url)
+            if webhook:
+                self.delete_webhook(webhook.webhook_id)
+                return True
+            logger.info(f"No webhook found with URL: {url}")
+            return False
+        except Exception as e:
+            logger.error(f"Error deleting webhook by URL: {e}")
             raise
 
     def ensure_webhook_registered(
