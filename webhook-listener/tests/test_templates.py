@@ -109,6 +109,7 @@ class TestRenderInferenceService:
         assert 'mlflow.org/model-version: "1"' in result
         assert 'mlflow.org/run-id: "run123"' in result
         assert 'mlflow.org/experiment-id: "exp456"' in result
+        assert "protocolVersion: v2" in result
         assert "storageUri: s3://bucket/path" in result
         assert "managed-by: nebari-mlflow-webhook-listener" in result
 
@@ -229,6 +230,7 @@ class TestYAMLValidation:
         assert "model" in parsed["spec"]["predictor"]
         model = parsed["spec"]["predictor"]["model"]
         assert model["modelFormat"]["name"] == "mlflow"
+        assert model["protocolVersion"] == "v2"
         assert model["storageUri"] == "s3://mlflow-bucket/artifacts"
 
     def test_yaml_with_special_characters_is_valid(self):

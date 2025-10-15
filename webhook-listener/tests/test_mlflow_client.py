@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from mlflow.entities import Run, RunInfo
 from mlflow.entities.model_registry import ModelVersion
-from src.mlflow_client import MLflowClient
+from src.mlflow_client import MLflowClient, resolve_mlflow_artifacts_uri
 
 
 @pytest.fixture
@@ -364,3 +364,200 @@ async def test_get_storage_uri_empty_source(mlflow_client):
 
     with pytest.raises(ValueError, match="has no source URI"):
         await mlflow_client.get_storage_uri("test-model", "1")
+
+
+# Tests for ensure_webhook_registered_with_timeout were removed
+# That method has been replaced with the generic @with_timeout_and_retry decorator
+# See tests/test_timeout_utils.py for decorator tests
+
+
+@pytest.mark.asyncio
+async def test_get_models_with_deploy_tag_success(mlflow_client):
+    """Test getting models with deploy=true tag."""
+    # Mock registered models
+    mock_model1 = MagicMock()
+    mock_model1.name = "model-a"
+
+    mock_model2 = MagicMock()
+    mock_model2.name = "model-b"
+
+    mlflow_client._client.search_registered_models.return_value = [mock_model1, mock_model2]
+
+    # Mock model versions for model-a (has deploy=true)
+    mock_version_a1 = MagicMock()
+    mock_version_a1.version = "1"
+    mock_version_a1.run_id = "run-a1"
+    mock_version_a1.source = "s3://bucket/model-a"
+    mock_version_a1.tags = {"deploy": "true"}
+
+    # Mock model versions for model-b (no deploy tag)
+    mock_version_b1 = MagicMock()
+    mock_version_b1.version = "1"
+    mock_version_b1.run_id = "run-b1"
+    mock_version_b1.source = "s3://bucket/model-b"
+    mock_version_b1.tags = {}
+
+    def search_versions_side_effect(filter_string):
+        if "model-a" in filter_string:
+            return [mock_version_a1]
+        elif "model-b" in filter_string:
+            return [mock_version_b1]
+        return []
+
+    mlflow_client._client.search_model_versions.side_effect = search_versions_side_effect
+
+    result = await mlflow_client.get_models_with_deploy_tag()
+
+    assert len(result) == 1
+    assert result[0]["name"] == "model-a"
+    assert result[0]["version"] == "1"
+    assert result[0]["run_id"] == "run-a1"
+    assert result[0]["source"] == "s3://bucket/model-a"
+    assert result[0]["tags"]["deploy"] == "true"
+
+
+@pytest.mark.asyncio
+async def test_get_models_with_deploy_tag_no_models(mlflow_client):
+    """Test getting models when none have deploy=true tag."""
+    mlflow_client._client.search_registered_models.return_value = []
+
+    result = await mlflow_client.get_models_with_deploy_tag()
+
+    assert len(result) == 0
+
+
+@pytest.mark.asyncio
+async def test_get_models_with_deploy_tag_multiple_versions(mlflow_client):
+    """Test getting multiple versions of same model with deploy tag."""
+    # Mock registered model
+    mock_model = MagicMock()
+    mock_model.name = "test-model"
+
+    mlflow_client._client.search_registered_models.return_value = [mock_model]
+
+    # Mock multiple versions with deploy=true
+    mock_version1 = MagicMock()
+    mock_version1.version = "1"
+    mock_version1.run_id = "run-1"
+    mock_version1.source = "s3://bucket/v1"
+    mock_version1.tags = {"deploy": "true"}
+
+    mock_version2 = MagicMock()
+    mock_version2.version = "2"
+    mock_version2.run_id = "run-2"
+    mock_version2.source = "s3://bucket/v2"
+    mock_version2.tags = {"deploy": "true"}
+
+    mock_version3 = MagicMock()
+    mock_version3.version = "3"
+    mock_version3.run_id = "run-3"
+    mock_version3.source = "s3://bucket/v3"
+    mock_version3.tags = {"deploy": "false"}  # Should be excluded
+
+    mlflow_client._client.search_model_versions.return_value = [
+        mock_version1, mock_version2, mock_version3
+    ]
+
+    result = await mlflow_client.get_models_with_deploy_tag()
+
+    assert len(result) == 2
+    assert result[0]["version"] == "1"
+    assert result[1]["version"] == "2"
+
+
+@pytest.mark.asyncio
+async def test_get_models_with_deploy_tag_handles_errors(mlflow_client):
+    """Test that get_models_with_deploy_tag handles errors gracefully."""
+    mlflow_client._client.search_registered_models.side_effect = Exception("MLflow error")
+
+    result = await mlflow_client.get_models_with_deploy_tag()
+
+    # Should return empty list instead of raising
+    assert len(result) == 0
+
+
+@pytest.mark.asyncio
+async def test_get_models_with_deploy_tag_none_tags(mlflow_client):
+    """Test handling versions with None tags."""
+    mock_model = MagicMock()
+    mock_model.name = "test-model"
+
+    mlflow_client._client.search_registered_models.return_value = [mock_model]
+
+    # Mock version with None tags
+    mock_version = MagicMock()
+    mock_version.version = "1"
+    mock_version.run_id = "run-1"
+    mock_version.source = "s3://bucket/v1"
+    mock_version.tags = None  # None instead of dict
+
+    mlflow_client._client.search_model_versions.return_value = [mock_version]
+
+    result = await mlflow_client.get_models_with_deploy_tag()
+
+    # Should handle None tags gracefully
+    assert len(result) == 0
+
+
+class TestResolveMLflowArtifactsUri:
+    """Tests for resolve_mlflow_artifacts_uri function."""
+
+    @patch("src.mlflow_client.settings")
+    def test_resolve_mlflow_artifacts_uri_with_double_slash(self, mock_settings):
+        """Test resolving mlflow-artifacts:// URI with double slash."""
+        mock_settings.artifacts_uri = "gs://nebari-mlflow-artifacts"
+
+        source = "mlflow-artifacts://1/models/m-abc123/artifacts"
+        result = resolve_mlflow_artifacts_uri(source)
+
+        assert result == "gs://nebari-mlflow-artifacts/1/models/m-abc123/artifacts"
+
+    @patch("src.mlflow_client.settings")
+    def test_resolve_mlflow_artifacts_uri_with_single_slash(self, mock_settings):
+        """Test resolving mlflow-artifacts:/ URI with single slash."""
+        mock_settings.artifacts_uri = "gs://my-bucket"
+
+        source = "mlflow-artifacts:/1/models/m-xyz789/artifacts"
+        result = resolve_mlflow_artifacts_uri(source)
+
+        assert result == "gs://my-bucket/1/models/m-xyz789/artifacts"
+
+    @patch("src.mlflow_client.settings")
+    def test_resolve_mlflow_artifacts_uri_with_trailing_slash_in_base(self, mock_settings):
+        """Test that trailing slash in artifacts_uri is handled correctly."""
+        mock_settings.artifacts_uri = "s3://my-bucket/"
+
+        source = "mlflow-artifacts:/1/abc123/artifacts"
+        result = resolve_mlflow_artifacts_uri(source)
+
+        assert result == "s3://my-bucket/1/abc123/artifacts"
+
+    @patch("src.mlflow_client.settings")
+    def test_resolve_already_resolved_gs_uri(self, mock_settings):
+        """Test that already resolved gs:// URIs are returned as-is."""
+        mock_settings.artifacts_uri = "gs://nebari-mlflow-artifacts"
+
+        source = "gs://nebari-mlflow-artifacts/1/487892df/artifacts/best_estimator"
+        result = resolve_mlflow_artifacts_uri(source)
+
+        assert result == source
+
+    @patch("src.mlflow_client.settings")
+    def test_resolve_already_resolved_s3_uri(self, mock_settings):
+        """Test that already resolved s3:// URIs are returned as-is."""
+        mock_settings.artifacts_uri = "s3://my-bucket"
+
+        source = "s3://my-bucket/path/to/model"
+        result = resolve_mlflow_artifacts_uri(source)
+
+        assert result == source
+
+    @patch("src.mlflow_client.settings")
+    def test_resolve_with_azure_storage(self, mock_settings):
+        """Test resolving with Azure blob storage URI."""
+        mock_settings.artifacts_uri = "wasbs://container@account.blob.core.windows.net"
+
+        source = "mlflow-artifacts:/1/models/m-abc123/artifacts"
+        result = resolve_mlflow_artifacts_uri(source)
+
+        assert result == "wasbs://container@account.blob.core.windows.net/1/models/m-abc123/artifacts"

@@ -155,6 +155,11 @@ All configuration is done through environment variables in the deployment patch:
 | `MLFLOW_KSERVE_LOG_LEVEL` | Logging level | `INFO`, `DEBUG` |
 | `MLFLOW_KSERVE_PREDICTOR_CPU_REQUEST` | CPU request for models | `100m` |
 | `MLFLOW_KSERVE_PREDICTOR_MEMORY_REQUEST` | Memory request for models | `512Mi` |
+| `MLFLOW_KSERVE_DISABLE_WEBHOOKS` | Skip webhook registration, use polling only | `true`, `false` |
+| `MLFLOW_KSERVE_WEBHOOK_STARTUP_TIMEOUT` | Webhook registration timeout (seconds) | `30` |
+| `MLFLOW_KSERVE_WEBHOOK_STARTUP_RETRIES` | Webhook registration retry attempts | `2` |
+| `MLFLOW_KSERVE_ENABLE_POLLING_FALLBACK` | Enable polling if webhook fails | `true`, `false` |
+| `MLFLOW_KSERVE_POLLING_INTERVAL` | Polling interval (seconds) | `60` |
 
 See [deployment-patch.yaml](overlays/default/deployment-patch.yaml) for all available options.
 
@@ -209,6 +214,57 @@ kubectl apply -k k8s/overlays/examples/azure/
 ```
 
 ## Advanced Topics
+
+### Polling Mode
+
+The webhook listener supports two modes of operation:
+
+1. **Webhook mode (default)**: Registers webhooks with MLflow for immediate event-driven deployments
+2. **Polling mode**: Periodically checks MLflow for models with `deploy=true` tags
+
+#### Automatic Polling Fallback
+
+By default, the webhook listener attempts to register webhooks with MLflow at startup. If MLflow doesn't respond (e.g., network issues, MLflow unavailable), the service automatically falls back to polling mode.
+
+**How it works:**
+1. At startup, the service tries to register webhooks with MLflow (with configurable timeout and retries)
+2. If webhook registration fails and `MLFLOW_KSERVE_ENABLE_POLLING_FALLBACK=true`, polling mode activates
+3. In polling mode, the service periodically checks MLflow for models with `deploy=true` tags
+4. Models are automatically deployed/undeployed based on their tags
+
+**Configuration:**
+```yaml
+# In your deployment patch
+- name: MLFLOW_KSERVE_WEBHOOK_STARTUP_TIMEOUT
+  value: "30"  # Seconds to wait for webhook registration
+- name: MLFLOW_KSERVE_WEBHOOK_STARTUP_RETRIES
+  value: "2"   # Number of retry attempts
+- name: MLFLOW_KSERVE_ENABLE_POLLING_FALLBACK
+  value: "true"  # Enable polling if webhook fails
+- name: MLFLOW_KSERVE_POLLING_INTERVAL
+  value: "60"  # Poll every 60 seconds
+```
+
+#### Polling-Only Mode
+
+To bypass webhook registration entirely and use polling mode from the start:
+
+```yaml
+# In your deployment patch
+- name: MLFLOW_KSERVE_DISABLE_WEBHOOKS
+  value: "true"  # Skip webhook registration entirely
+- name: MLFLOW_KSERVE_POLLING_INTERVAL
+  value: "60"  # Poll every 60 seconds
+```
+
+**When to use polling-only mode:**
+- MLflow deployment doesn't support webhooks (older versions)
+- MLflow is consistently unavailable or has high latency at startup
+- You prefer periodic reconciliation over event-driven webhooks
+- Simplified configuration without webhook secrets
+- Testing or development environments
+
+**Note:** Webhook mode is more efficient and provides faster response times. Polling mode is reliable but adds latency (equal to the polling interval) between tag changes and deployments.
 
 ### Scaling
 
@@ -292,17 +348,31 @@ curl http://localhost:8000/health
 
 ### Common Issues
 
-1. **Pod can't create InferenceServices**
+1. **Webhook registration timeout ("stream closed EOF")**
+   - **Symptom:** Pod logs show "Checking for existing webhooks..." then crashes with EOF error
+   - **Cause:** MLflow doesn't respond to webhook API calls during startup
+   - **Solution:** The service automatically falls back to polling mode (if enabled). Check logs for:
+     ```
+     Webhook registration failed - falling back to polling mode
+     Polling service started as fallback
+     ```
+   - **Alternative solutions:**
+     - Increase timeout: `MLFLOW_KSERVE_WEBHOOK_STARTUP_TIMEOUT=60`
+     - Increase retries: `MLFLOW_KSERVE_WEBHOOK_STARTUP_RETRIES=5`
+     - Enable polling explicitly: `MLFLOW_KSERVE_ENABLE_POLLING_FALLBACK=true`
+     - Check MLflow server is accessible from the pod
+
+2. **Pod can't create InferenceServices**
    - Check RBAC permissions
    - Verify the ServiceAccount is bound correctly
    - Check target namespace exists
 
-2. **Storage access issues**
+3. **Storage access issues**
    - Verify storage URI format
    - Check cloud credentials (secrets, IAM roles, etc.)
    - Ensure KServe has access to the storage
 
-3. **MLflow connection issues**
+4. **MLflow connection issues**
    - Verify MLflow server URL is accessible from the pod
    - Check network policies
    - Verify webhook secret matches

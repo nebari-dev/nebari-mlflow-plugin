@@ -28,7 +28,7 @@ spec:
           value: "true"
 
         # Storage Configuration
-        - name: MLFLOW_KSERVE_STORAGE_URI_BASE
+        - name: MLFLOW_KSERVE_ARTIFACTS_URI
           value: "gs://nebari-mlflow-artifacts"
 
         # Template Configuration (mounted from ConfigMap)
@@ -48,6 +48,12 @@ spec:
         # Logging
         - name: MLFLOW_KSERVE_LOG_LEVEL
           value: "INFO"
+
+        # Webhook and Polling Configuration
+        - name: MLFLOW_KSERVE_DISABLE_WEBHOOKS
+          value: "true"
+        - name: MLFLOW_KSERVE_POLLING_INTERVAL
+          value: "15"
 
         # FastAPI Server
         - name: MLFLOW_KSERVE_APP_HOST

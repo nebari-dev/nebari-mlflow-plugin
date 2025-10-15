@@ -14,7 +14,7 @@ from src.kubernetes_client import (
     KubernetesClientError,
     InferenceServiceAlreadyExistsError,
 )
-from src.mlflow_client import MLflowClient
+from src.mlflow_client import MLflowClient, resolve_mlflow_artifacts_uri
 from src.templates import generate_inference_service_name, render_inference_service
 
 logger = logging.getLogger(__name__)
@@ -325,7 +325,10 @@ async def handle_tag_set_event(data: dict[str, Any]) -> dict[str, Any]:
 
             model_version = await mlflow_client.get_model_version(model_name, version)
             run_id = model_version["run_id"]
-            storage_uri = model_version["source"]
+            source_uri = model_version["source"]
+
+            # Resolve mlflow-artifacts:// URIs to actual cloud storage paths
+            storage_uri = resolve_mlflow_artifacts_uri(source_uri)
 
             # Get run details to fetch experiment_id
             run_details = await mlflow_client.get_run(run_id)
@@ -338,6 +341,7 @@ async def handle_tag_set_event(data: dict[str, Any]) -> dict[str, Any]:
                     "version": version,
                     "run_id": run_id,
                     "experiment_id": experiment_id,
+                    "source_uri": source_uri,
                     "storage_uri": storage_uri,
                 },
             )

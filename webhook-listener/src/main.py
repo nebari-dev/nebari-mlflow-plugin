@@ -1,5 +1,6 @@
 """FastAPI application for MLflow webhook listener."""
 
+import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
@@ -12,6 +13,8 @@ from src import __version__
 from src.config import settings
 from src.kubernetes_client import KubernetesClient
 from src.mlflow_client import MLflowClient
+from src.polling_service import PollingService
+from src.timeout_utils import with_timeout_and_retry
 from src.webhook_handler import (
     process_webhook_event,
     verify_mlflow_signature,
@@ -40,32 +43,100 @@ async def lifespan(_app: FastAPI):
     # Initialize MLflow client and ensure webhook is registered
     mlflow_client = MLflowClient(tracking_uri=settings.mlflow_tracking_uri)
 
-    logger.info("Checking for existing webhooks...")
-    # Delete any existing webhook with the same URL to ensure we use the current secret
-    # This handles cases where the webhook secret may have changed
-    deleted = mlflow_client.delete_webhook_by_url(settings.mlflow_webhook_url)
-    if deleted:
-        logger.info(f"Deleted existing webhook with URL: {settings.mlflow_webhook_url}")
-
-    logger.info("Registering webhook...")
-    was_created, webhook = mlflow_client.ensure_webhook_registered(
-        name=settings.mlflow_webhook_name,
-        url=settings.mlflow_webhook_url,
-        events=["model_version_tag.set", "model_version_tag.deleted"],
-        secret=settings.mlflow_webhook_secret,
-        description="Automatically deploy MLflow models to KServe based on tags",
-        test_on_create=False  # Don't test during startup to avoid circular dependency
+    # Initialize Kubernetes client
+    k8s_client = KubernetesClient(
+        namespace=settings.kube_namespace,
+        in_cluster=settings.kube_in_cluster
     )
 
-    if was_created:
-        logger.info(f"Webhook registered successfully: {webhook.webhook_id}")
+    # Initialize polling service (will only be used if webhook registration fails or is disabled)
+    polling_service = None
+
+    # Check if webhooks are disabled - if so, skip directly to polling
+    if settings.disable_webhooks:
+        logger.info("Webhooks disabled via configuration - using polling mode only")
+        webhook_registered = False
     else:
-        logger.info(f"Using existing webhook: {webhook.webhook_id}")
+        # Try to register webhook with timeout and retry logic
+        webhook_registered = False
+        try:
+            logger.info("Checking for existing webhooks...")
+            # Delete any existing webhook with the same URL to ensure we use the current secret
+            # This handles cases where the webhook secret may have changed
+            # Apply timeout/retry to the deletion operation
+            delete_with_timeout = with_timeout_and_retry(
+                timeout=settings.webhook_startup_timeout,
+                max_retries=settings.webhook_startup_retries,
+            )(mlflow_client.delete_webhook_by_url)
+
+            deleted = await delete_with_timeout(settings.mlflow_webhook_url)
+            if deleted:
+                logger.info(f"Deleted existing webhook with URL: {settings.mlflow_webhook_url}")
+
+            logger.info("Registering webhook with timeout...")
+            # Apply timeout/retry to webhook registration
+            register_with_timeout = with_timeout_and_retry(
+                timeout=settings.webhook_startup_timeout,
+                max_retries=settings.webhook_startup_retries,
+            )(mlflow_client.ensure_webhook_registered)
+
+            was_created, webhook = await register_with_timeout(
+                name=settings.mlflow_webhook_name,
+                url=settings.mlflow_webhook_url,
+                events=["model_version_tag.set", "model_version_tag.deleted"],
+                secret=settings.mlflow_webhook_secret,
+                description="Automatically deploy MLflow models to KServe based on tags",
+                test_on_create=False  # Don't test during startup to avoid circular dependency
+            )
+
+            if was_created:
+                logger.info(f"Webhook registered successfully: {webhook.webhook_id}")
+            else:
+                logger.info(f"Using existing webhook: {webhook.webhook_id}")
+
+            webhook_registered = True
+
+        except asyncio.TimeoutError:
+            logger.error(
+                f"Webhook operations timed out after {settings.webhook_startup_timeout}s "
+                f"with {settings.webhook_startup_retries} retries"
+            )
+        except Exception as e:
+            logger.error(f"Failed to complete webhook setup: {e}", exc_info=True)
+
+    # Fall back to polling if webhook registration failed/disabled and polling is enabled
+    if not webhook_registered and settings.enable_polling_fallback:
+        if settings.disable_webhooks:
+            logger.info(
+                f"Starting in polling-only mode (interval: {settings.polling_interval}s)"
+            )
+        else:
+            logger.warning(
+                "Webhook registration failed - falling back to polling mode "
+                f"(interval: {settings.polling_interval}s)"
+            )
+        polling_service = PollingService(
+            mlflow_client=mlflow_client,
+            k8s_client=k8s_client,
+            interval=settings.polling_interval
+        )
+        await polling_service.start()
+        logger.info("Polling service started as fallback")
+    elif not webhook_registered:
+        logger.error(
+            "Webhook registration failed and polling fallback is disabled. "
+            "Service will only respond to webhooks if they are manually configured."
+        )
 
     yield
 
     # Shutdown
     logger.info("Shutting down MLflow KServe Webhook Listener")
+
+    # Stop polling service if it's running
+    if polling_service:
+        logger.info("Stopping polling service...")
+        await polling_service.stop()
 
 
 # Initialize FastAPI app

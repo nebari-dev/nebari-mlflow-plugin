@@ -54,6 +54,13 @@ class Settings(BaseSettings):
         default="templates/inference_service.yaml.j2",
         description="Path to InferenceService Jinja2 template",
     )
+    artifacts_uri: str = Field(
+        ...,
+        description=(
+            "Base URI for MLflow artifacts storage (e.g., gs://nebari-mlflow-artifacts, s3://my-bucket). "
+            "Required. Used to resolve mlflow-artifacts:// URIs to actual cloud storage paths."
+        )
+    )
 
     # Optional: Resource limits
     predictor_cpu_request: str = Field(
@@ -71,6 +78,28 @@ class Settings(BaseSettings):
 
     # Logging
     log_level: str = Field(default="INFO", description="Logging level")
+
+    # Webhook and Polling Configuration
+    disable_webhooks: bool = Field(
+        default=False,
+        description="Bypass webhook registration entirely and use polling mode only"
+    )
+    webhook_startup_timeout: int = Field(
+        default=30,
+        description="Timeout in seconds for webhook registration at startup"
+    )
+    webhook_startup_retries: int = Field(
+        default=2,
+        description="Number of retries for webhook registration at startup"
+    )
+    enable_polling_fallback: bool = Field(
+        default=True,
+        description="Enable polling fallback if webhook registration fails"
+    )
+    polling_interval: int = Field(
+        default=60,
+        description="Interval in seconds for polling MLflow for models with deploy tags"
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="MLFLOW_KSERVE_",

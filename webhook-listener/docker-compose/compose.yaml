@@ -68,7 +68,7 @@ services:
       - MLFLOW_KSERVE_KUBE_NAMESPACE=kserve-mlflow-models
       - MLFLOW_KSERVE_KUBE_IN_CLUSTER=false
       # Storage configuration
-      - MLFLOW_KSERVE_STORAGE_URI_BASE=file:///mlflow/artifacts
+      - MLFLOW_KSERVE_ARTIFACTS_URI=file:///mlflow/artifacts
       # Logging
       - MLFLOW_KSERVE_LOG_LEVEL=DEBUG
     volumes:
