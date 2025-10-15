@@ -164,7 +164,18 @@ async def health_check():
     """
     Health check endpoint for Kubernetes probes.
 
+    Returns a simple status indicating the service is running.
+    """
+    return {"status": "healthy"}
+
+
+@app.get("/health/detailed")
+async def detailed_health_check():
+    """
+    Detailed health check endpoint.
+
     Tests connectivity to MLflow and Kubernetes API and returns detailed status.
+    This endpoint is more resource-intensive and should not be used for probes.
     """
     health_status = {
         "status": "healthy",
@@ -172,7 +183,7 @@ async def health_check():
         "kubernetes_connected": False,
         "details": {}
     }
-    
+
     # Test MLflow connectivity
     try:
         mlflow_client = MLflowClient(tracking_uri=settings.mlflow_tracking_uri)
@@ -188,7 +199,7 @@ async def health_check():
         health_status["status"] = "unhealthy"
         health_status["details"]["mlflow_error"] = str(e)
         logger.warning(f"MLflow health check failed: {e}")
-    
+
     # Test Kubernetes connectivity
     try:
         k8s_client = KubernetesClient(
@@ -211,11 +222,11 @@ async def health_check():
         health_status["status"] = "unhealthy"
         health_status["details"]["kubernetes_error"] = str(e)
         logger.warning(f"Kubernetes health check failed: {e}")
-    
+
     # Overall health is only healthy if both connections work
     if not (health_status["mlflow_connected"] and health_status["kubernetes_connected"]):
         health_status["status"] = "unhealthy"
-    
+
     return health_status
 
 

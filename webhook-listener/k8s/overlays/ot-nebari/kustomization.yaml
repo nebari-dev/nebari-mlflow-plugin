@@ -1,11 +1,13 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: kserve-mlflow
+namespace: prod
 
 resources:
 - namespace.yaml
 - secret.yaml
+- ingressroute.yaml
+- middleware.yaml
 - ../../base
 
 # Patch deployment with environment-specific values
@@ -17,6 +19,6 @@ patches:
 
 # Override the image to use the OpenTeams build
 images:
-- digest: sha256:ed5d703802403d5ca420ece7b637932896eb52dd6bd12017084b363bef0dfd7d
+- digest: sha256:5cfe5a90175a9d4e19052cf41261149fda6e3ccee8b0cd2e689eb66ef12d697f
   name: ghcr.io/nebari-dev/mlflow-kserve-webhook-listener
   newName: quay.io/openteams/mlflow-webhook-listener
