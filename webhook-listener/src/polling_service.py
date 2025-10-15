@@ -101,7 +101,7 @@ class PollingService:
 
             # Get currently deployed services from Kubernetes
             deployed_services = await self.k8s_client.list_inference_services(
-                label_selector="managed-by=mlflow-kserve-webhook-listener"
+                label_selector="managed-by=nebari-mlflow-webhook-listener"
             )
 
             # Build set of currently deployed (model_name, version) tuples
@@ -109,8 +109,8 @@ class PollingService:
             deployed_service_names = {}
             for svc in deployed_services:
                 labels = svc.get("labels", {})
-                model_name = labels.get("mlflow.model")
-                version = labels.get("mlflow.version")
+                model_name = labels.get("mlflow.org/model-name")
+                version = labels.get("mlflow.org/model-version")
                 if model_name and version:
                     current_deployments.add((model_name, version))
                     deployed_service_names[(model_name, version)] = svc["name"]

@@ -286,7 +286,7 @@ async def detailed_health_check():
         # Try to list InferenceServices as a connectivity test
         # Use the managed-by label to only count services managed by this webhook
         services = await k8s_client.list_inference_services(
-            label_selector="managed-by=mlflow-kserve-webhook-listener"
+            label_selector="managed-by=nebari-mlflow-webhook-listener"
         )
         health_status["kubernetes_connected"] = True
         health_status["details"]["kubernetes"] = {
@@ -323,7 +323,7 @@ async def list_services():
         
         # List InferenceServices managed by this webhook
         raw_services = await k8s_client.list_inference_services(
-            label_selector="managed-by=mlflow-kserve-webhook-listener"
+            label_selector="managed-by=nebari-mlflow-webhook-listener"
         )
         
         # Transform the raw service data into a more user-friendly format
@@ -346,9 +346,9 @@ async def list_services():
             services.append({
                 "name": svc["name"],
                 "namespace": svc["namespace"],
-                "model_name": labels.get("mlflow.model", "unknown"),
-                "model_version": labels.get("mlflow.version", "unknown"),
-                "run_id": labels.get("mlflow.run-id", "unknown"),
+                "model_name": labels.get("mlflow.org/model-name", "unknown"),
+                "model_version": labels.get("mlflow.org/model-version", "unknown"),
+                "run_id": labels.get("mlflow.org/run-id", "unknown"),
                 "status": ready_status,
                 "url": url,
                 "creation_timestamp": svc.get("creation_timestamp"),
