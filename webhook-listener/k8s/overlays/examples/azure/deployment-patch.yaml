@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow-kserve-webhook-listener
+spec:
+  template:
+    spec:
+      containers:
+      - name: listener
+        env:
+        # MLflow Configuration
+        - name: MLFLOW_KSERVE_MLFLOW_TRACKING_URI
+          value: "http://mlflow-server.mlflow.svc.cluster.local:5000"
+        - name: MLFLOW_KSERVE_MLFLOW_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-webhook-secret
+              key: secret
+
+        # Kubernetes Configuration
+        - name: MLFLOW_KSERVE_KUBE_NAMESPACE
+          value: "kserve-models"
+        - name: MLFLOW_KSERVE_KUBE_IN_CLUSTER
+          value: "true"
+
+        # Azure Blob Storage Configuration
+        - name: MLFLOW_KSERVE_STORAGE_URI_BASE
+          value: "wasbs://your-container@yourstorageaccount.blob.core.windows.net/mlflow-artifacts"
+
+        # Optional: Azure credentials (if not using managed identity)
+        # - name: AZURE_STORAGE_CONNECTION_STRING
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: azure-storage-secret
+        #       key: connection-string
+
+        # Template Configuration
+        - name: MLFLOW_KSERVE_INFERENCE_SERVICE_TEMPLATE
+          value: "/etc/templates/template.yaml"
+
+        # Resource Configuration
+        - name: MLFLOW_KSERVE_PREDICTOR_CPU_REQUEST
+          value: "100m"
+        - name: MLFLOW_KSERVE_PREDICTOR_CPU_LIMIT
+          value: "2"
+        - name: MLFLOW_KSERVE_PREDICTOR_MEMORY_REQUEST
+          value: "512Mi"
+        - name: MLFLOW_KSERVE_PREDICTOR_MEMORY_LIMIT
+          value: "4Gi"
+
+        # Logging
+        - name: MLFLOW_KSERVE_LOG_LEVEL
+          value: "INFO"
+
+        # FastAPI Server
+        - name: MLFLOW_KSERVE_APP_HOST
+          value: "0.0.0.0"
+        - name: MLFLOW_KSERVE_APP_PORT
+          value: "8000"
