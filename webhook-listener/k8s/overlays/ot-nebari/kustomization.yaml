@@ -5,6 +5,7 @@ namespace: prod
 
 resources:
 - namespace.yaml
+- models-namespace.yaml
 - secret.yaml
 - ingressroute.yaml
 - middleware.yaml

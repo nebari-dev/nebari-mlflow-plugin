@@ -23,7 +23,7 @@ spec:
 
         # Kubernetes Configuration
         - name: MLFLOW_KSERVE_KUBE_NAMESPACE
-          value: "prod"
+          value: "models"
         - name: MLFLOW_KSERVE_KUBE_IN_CLUSTER
           value: "true"
 
