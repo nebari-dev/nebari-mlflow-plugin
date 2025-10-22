@@ -1,16 +1,15 @@
 import inspect
 import json
-
-from nebari.schema import Base, ProviderEnum
-from _nebari.stages.base import NebariTerraformStage
-from nebari.hookspecs import NebariStage, hookimpl
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pydantic import field_validator
+from _nebari.stages.base import NebariTerraformStage
+from nebari.hookspecs import NebariStage, hookimpl
+from nebari.schema import Base, ProviderEnum
+
 
 class MlflowConfigAWS(Base):
-    enable_s3_encryption: Optional[bool] = True
+    enable_s3_encryption: bool | None = True
 
 class MlflowConfigAzure(Base):
     ...
@@ -23,13 +22,13 @@ class MlflowConfigLocal(Base):
 
 class MlflowProvidersInputSchema(Base):
     enabled: bool = True
-    overrides: Optional[Dict[str, Any]] = {}
+    overrides: dict[str, Any] | None = {}
 
     # provder specific config
-    aws: Optional[MlflowConfigAWS] = None
-    azure: Optional[MlflowConfigAzure] = None
-    gcp: Optional[MlflowConfigGCP] = None
-    local: Optional[MlflowConfigLocal] = None
+    aws: MlflowConfigAWS | None = None
+    azure: MlflowConfigAzure | None = None
+    gcp: MlflowConfigGCP | None = None
+    local: MlflowConfigLocal | None = None
 
 class InputSchema(Base):
     mlflow: MlflowProvidersInputSchema
@@ -48,7 +47,7 @@ class MlflowStage(NebariTerraformStage):
             / self.config.provider.value
         )
 
-    def check(self, stage_outputs: Dict[str, Dict[str, Any]], disable_prompt=False) -> bool:
+    def check(self, stage_outputs: dict[str, dict[str, Any]], disable_prompt=False) -> bool:
         # TODO: Module requires EKS cluster is configured for IRSA.  Once Nebari version with IRSA is released, should update
         # this error message and also minimum Nebari version in pyproject.toml
         if self.config.provider == ProviderEnum.aws:
@@ -106,7 +105,7 @@ class MlflowStage(NebariTerraformStage):
 
         return True
 
-    def input_vars(self, stage_outputs: Dict[str, Dict[str, Any]]):
+    def input_vars(self, stage_outputs: dict[str, dict[str, Any]]):
         if self.config.provider == ProviderEnum.aws:
             cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
             external_url = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
@@ -121,7 +120,7 @@ class MlflowStage(NebariTerraformStage):
                 "enabled": self.config.mlflow.enabled,
                 "namespace": self.config.namespace,
                 "external_url": external_url,
-                "helm-release-name": self.config.project_name + '-mlflow',
+                "helm-release-name": self.config.project_name + "-mlflow",
                 "forwardauth-service-name": forwardauth_service_name,
                 "forwardauth-middleware-name": forwardauth_middleware_name,
                 "cluster_oidc_issuer_url": cluster_oidc_issuer_url,
@@ -141,13 +140,13 @@ class MlflowStage(NebariTerraformStage):
                 "enabled": self.config.mlflow.enabled,
                 "namespace": self.config.namespace,
                 "external_url": external_url,
-                "helm-release-name": self.config.project_name + '-mlflow',
+                "helm-release-name": self.config.project_name + "-mlflow",
                 "forwardauth-service-name": forwardauth_service_name,
                 "forwardauth-middleware-name": forwardauth_middleware_name,
                 "cluster_oidc_issuer_url": cluster_oidc_issuer_url,
                 "storage_resource_group_name": resource_group_name,
                 "region": self.config.azure.region,
-                "storage_account_name": self.config.project_name[:15] + 'mlfsa' + self.config.azure.storage_account_postfix,
+                "storage_account_name": self.config.project_name[:15] + "mlfsa" + self.config.azure.storage_account_postfix,
                 "overrides": [json.dumps(self.config.mlflow.overrides)],
             }
         elif self.config.provider == ProviderEnum.gcp:
@@ -161,7 +160,7 @@ class MlflowStage(NebariTerraformStage):
                 "enabled": self.config.mlflow.enabled,
                 "namespace": self.config.namespace,
                 "external_url": external_url,
-                "helm-release-name": self.config.project_name + '-mlflow',
+                "helm-release-name": self.config.project_name + "-mlflow",
                 "forwardauth-service-name": forwardauth_service_name,
                 "forwardauth-middleware-name": forwardauth_middleware_name,
                 "cluster_oidc_issuer_url": cluster_oidc_issuer_url,
@@ -181,7 +180,7 @@ class MlflowStage(NebariTerraformStage):
                 "enabled": self.config.mlflow.enabled,
                 "namespace": self.config.namespace,
                 "external_url": external_url,
-                "helm-release-name": self.config.project_name + '-mlflow',
+                "helm-release-name": self.config.project_name + "-mlflow",
                 "forwardauth-service-name": forwardauth_service_name,
                 "forwardauth-middleware-name": forwardauth_middleware_name,
                 "minio_root_password": minio_password,
@@ -192,5 +191,5 @@ class MlflowStage(NebariTerraformStage):
 
 
 @hookimpl
-def nebari_stage() -> List[NebariStage]:
+def nebari_stage() -> list[NebariStage]:
     return [MlflowStage]

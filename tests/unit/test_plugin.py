@@ -1,6 +1,9 @@
-import pytest
 from unittest.mock import Mock
-from nebari_mlflow_plugin import MlflowStage, MlflowProvidersInputSchema, MlflowConfigAWS
+
+import pytest
+
+from nebari_mlflow_plugin import MlflowConfigAWS, MlflowProvidersInputSchema, MlflowStage
+
 
 def create_test_config(namespace, domain, escaped_project_name, project_name, provider, mlflow=None):
     """Helper function to create a mock config object"""
@@ -57,7 +60,7 @@ def test_input_vars_aws():
     assert result["project_name"] == "testprojectname"
     assert result["region"] == "us-east-1"
     assert result["enable_s3_encryption"] == True
-    assert result["overrides"] == ['{}']
+    assert result["overrides"] == ["{}"]
 
 def test_input_vars_azure():
     config = create_test_config(
