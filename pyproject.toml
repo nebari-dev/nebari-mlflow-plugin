@@ -32,7 +32,6 @@ dev = [
   "coverage[toml]>=6.5",
   "pytest",
   "kubernetes",
-  "black>=23.1.0",
   "mypy>=1.0.0",
   "ruff>=0.0.243",
   "nebari[dev]>=2025.6.1"

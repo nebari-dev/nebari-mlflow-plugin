@@ -74,15 +74,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Python
-        uses: conda-incubator/setup-miniconda@v3
-        env:
-          CONDA: /home/runnerx/miniconda3
+      - name: Set up Python and uv
+        uses: astral-sh/setup-uv@v7
         with:
-          auto-update-conda: true
           python-version: ${{ env.PYTHON_VERSION }}
-          miniconda-version: "latest"
-          activate-environment: nebari
+          enable-cache: true
+          cache-dependency-glob: |
+            **/pyproject.toml
+            **/uv.lock
+          cache-suffix: mlflow-plugin-v1
 
       - name: Install JQ
         run: |
@@ -91,8 +91,8 @@ jobs:
 
       - name: Install Nebari and playwright
         run: |
-          pip install .[dev]
-          playwright install
+          uv sync --extra dev
+          uv run playwright install
 
       - name: Initialize Nebari config for local deployment
         id: init
@@ -100,7 +100,7 @@ jobs:
 
       - name: Deploy Nebari
         working-directory: ${{ steps.init.outputs.directory }}
-        run: nebari deploy --config ${{ steps.init.outputs.config }} --disable-prompt
+        run: uv run nebari deploy --config ${{ steps.init.outputs.config }} --disable-prompt
 
       - name: Health check
         uses: ./.github/actions/health-check
@@ -110,9 +110,9 @@ jobs:
       - name: Create example-users
         working-directory: ${{ steps.init.outputs.directory }}
         run: |
-          nebari keycloak add-user --user "${TEST_USERNAME}" -p "${TEST_PASSWORD}" --config ${{ steps.init.outputs.config }}
-          nebari keycloak add-user --user "${TEST_SUPERADMIN_USER}" -p "${TEST_SUPERADMIN_PASSWORD}" --config ${{ steps.init.outputs.config }} --groups superadmin
-          nebari keycloak list-users --config ${{ steps.init.outputs.config }}
+          uv run nebari keycloak add-user --user "${TEST_USERNAME}" -p "${TEST_PASSWORD}" --config ${{ steps.init.outputs.config }}
+          uv run nebari keycloak add-user --user "${TEST_SUPERADMIN_USER}" -p "${TEST_SUPERADMIN_PASSWORD}" --config ${{ steps.init.outputs.config }} --groups superadmin
+          uv run nebari keycloak list-users --config ${{ steps.init.outputs.config }}
 
       - name: Await Workloads
         uses: jupyterhub/action-k8s-await-workloads@v3
@@ -129,7 +129,7 @@ jobs:
           KEYCLOAK_USERNAME: ${{ env.TEST_USERNAME }}
           KEYCLOAK_PASSWORD: ${{ env.TEST_PASSWORD }}
         run: |
-          pytest tests/tests_deployment/ -v -s
+          uv run pytest tests/tests_deployment/ -v -s
 
       ### USER-JOURNEY TESTS
       - uses: actions/setup-node@v4
@@ -192,7 +192,7 @@ jobs:
           KEYCLOAK_USERNAME: ${{ env.TEST_SUPERADMIN_USER }}
           KEYCLOAK_PASSWORD: ${{ env.TEST_SUPERADMIN_PASSWORD }}
         run: |
-          echo "CONDA_STORE_TOKEN=$(python scripts/get_conda_store_token.py)" >> "$GITHUB_OUTPUT"
+          echo "CONDA_STORE_TOKEN=$(python scripts/  get_conda_store_token.py)" >> "$GITHUB_OUTPUT"
 
       - name: Run conda-store-server user_journey tests
         env:
@@ -216,6 +216,4 @@ jobs:
         # up feedback cycle
         if: github.ref_name == 'main' || github.event_name == 'workflow_dispatch'
         working-directory: ${{ steps.init.outputs.directory }}
-        # We need to use the conda environment to run the nebari command as the current environment
-        # is the one that was created to run the conda-store user journey tests
-        run: conda run -n nebari nebari destroy --config ${{ steps.init.outputs.config }} --disable-prompt
+        run: uv run nebari destroy --config ${{ steps.init.outputs.config }} --disable-prompt
