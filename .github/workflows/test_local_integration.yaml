@@ -91,7 +91,7 @@ jobs:
 
       - name: Install Nebari and playwright
         run: |
-          uv sync --extra dev
+          uv sync --group dev
           uv run playwright install
 
       - name: Initialize Nebari config for local deployment

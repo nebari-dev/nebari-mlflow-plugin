@@ -27,7 +27,7 @@ dependencies = [
   "nebari>=2025.6.1",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
   "coverage[toml]>=6.5",
   "pytest",

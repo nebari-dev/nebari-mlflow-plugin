@@ -1,5 +1,5 @@
 import pytest
-from nebari_plugin_mlflow_aws import MlflowStage, MlflowConfig, InputSchema
+from nebari_mlflow_plugin import MlflowStage, InputSchema, MlflowProvidersInputSchema
 
 class TestConfig(InputSchema):
     __test__ = False
@@ -7,11 +7,11 @@ class TestConfig(InputSchema):
     domain: str
     escaped_project_name: str = ""
     provider: str
-    mlflow: MlflowConfig = MlflowConfig()
+    mlflow: MlflowProvidersInputSchema = MlflowProvidersInputSchema()
 
 @pytest.fixture(autouse=True)
 def mock_keycloak_connection(monkeypatch):
-    monkeypatch.setattr("nebari_plugin_mlflow_aws.MlflowStage._attempt_keycloak_connection", lambda *args, **kwargs: True)
+    monkeypatch.setattr("nebari_mlflow_plugin.MlflowStage._attempt_keycloak_connection", lambda *args, **kwargs: True)
 
 def test_ctor():
     sut = MlflowStage(output_directory = None, config = None)
@@ -60,7 +60,7 @@ def test_default_namespace():
     assert result["namespace"] == "nebari-ns"
 
 def test_chart_namespace():
-    config = TestConfig(namespace = "nebari-ns", domain = "my-test-domain.com", provider="aws", mlflow = MlflowConfig(namespace = "mlflow-ns"))
+    config = TestConfig(namespace = "nebari-ns", domain = "my-test-domain.com", provider="aws", mlflow = MlflowProvidersInputSchema(namespace = "mlflow-ns"))
     sut = MlflowStage(output_directory = None, config = config)
 
     stage_outputs = get_stage_outputs()
@@ -69,7 +69,7 @@ def test_chart_namespace():
     assert result["namespace"] == "mlflow-ns"
 
 def test_chart_overrides():
-    config = TestConfig(namespace = "nebari-ns", domain = "my-test-domain.com", provider="aws", mlflow = MlflowConfig(values = { "foo": "bar" }))
+    config = TestConfig(namespace = "nebari-ns", domain = "my-test-domain.com", provider="aws", mlflow = MlflowProvidersInputSchema(overrides = { "foo": "bar" }))
     sut = MlflowStage(output_directory = None, config = config)
 
     stage_outputs = get_stage_outputs()
