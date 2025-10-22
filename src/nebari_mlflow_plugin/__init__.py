@@ -6,19 +6,22 @@ from typing import Any, Dict, List, Optional
 from _nebari.stages.base import NebariTerraformStage
 from nebari.hookspecs import NebariStage, hookimpl
 from nebari.schema import Base, ProviderEnum
+from pydantic import Field
 
 
 class MlflowConfigAWS(Base):
     enable_s3_encryption: bool | None = True
 
-class MlflowConfigAzure(Base):
-    ...
 
-class MlflowConfigGCP(Base):
-    ...
+class MlflowConfigAzure(Base): ...
+
+
+class MlflowConfigGCP(Base): ...
+
 
 class MlflowConfigLocal(Base):
     minio_root_password: str = "minio-secret-password"
+
 
 class MlflowProvidersInputSchema(Base):
     enabled: bool = True
@@ -30,8 +33,10 @@ class MlflowProvidersInputSchema(Base):
     gcp: MlflowConfigGCP | None = None
     local: MlflowConfigLocal | None = None
 
+
 class InputSchema(Base):
-    mlflow: MlflowProvidersInputSchema
+    mlflow: MlflowProvidersInputSchema = Field(default=MlflowProvidersInputSchema(enabled=True))
+
 
 class MlflowStage(NebariTerraformStage):
     name = "mlflow"
@@ -41,11 +46,7 @@ class MlflowStage(NebariTerraformStage):
 
     @property
     def template_directory(self):
-        return (
-            Path(inspect.getfile(self.__class__)).parent
-            / "template"
-            / self.config.provider.value
-        )
+        return Path(inspect.getfile(self.__class__)).parent / "template" / self.config.provider.value
 
     def check(self, stage_outputs: dict[str, dict[str, Any]], disable_prompt=False) -> bool:
         # TODO: Module requires EKS cluster is configured for IRSA.  Once Nebari version with IRSA is released, should update
@@ -109,8 +110,12 @@ class MlflowStage(NebariTerraformStage):
         if self.config.provider == ProviderEnum.aws:
             cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
             external_url = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
-            forwardauth_service_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-service"]["value"]["name"]
-            forwardauth_middleware_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-middleware"]["value"]["name"]
+            forwardauth_service_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-service"]["value"][
+                "name"
+            ]
+            forwardauth_middleware_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-middleware"][
+                "value"
+            ]["name"]
 
             enable_s3_encryption = True
             if self.config.mlflow.aws:
@@ -133,8 +138,12 @@ class MlflowStage(NebariTerraformStage):
             cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
             external_url = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
             resource_group_name = stage_outputs["stages/02-infrastructure"]["resource_group_name"]["value"]
-            forwardauth_service_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-service"]["value"]["name"]
-            forwardauth_middleware_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-middleware"]["value"]["name"]
+            forwardauth_service_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-service"]["value"][
+                "name"
+            ]
+            forwardauth_middleware_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-middleware"][
+                "value"
+            ]["name"]
 
             return {
                 "enabled": self.config.mlflow.enabled,
@@ -146,15 +155,21 @@ class MlflowStage(NebariTerraformStage):
                 "cluster_oidc_issuer_url": cluster_oidc_issuer_url,
                 "storage_resource_group_name": resource_group_name,
                 "region": self.config.azure.region,
-                "storage_account_name": self.config.project_name[:15] + "mlfsa" + self.config.azure.storage_account_postfix,
+                "storage_account_name": self.config.project_name[:15]
+                + "mlfsa"
+                + self.config.azure.storage_account_postfix,
                 "overrides": [json.dumps(self.config.mlflow.overrides)],
             }
         elif self.config.provider == ProviderEnum.gcp:
             cluster_oidc_issuer_url = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
             external_url = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
             project_id = stage_outputs["stages/02-infrastructure"]["project_id"]["value"]
-            forwardauth_service_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-service"]["value"]["name"]
-            forwardauth_middleware_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-middleware"]["value"]["name"]
+            forwardauth_service_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-service"]["value"][
+                "name"
+            ]
+            forwardauth_middleware_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-middleware"][
+                "value"
+            ]["name"]
 
             return {
                 "enabled": self.config.mlflow.enabled,
@@ -171,10 +186,16 @@ class MlflowStage(NebariTerraformStage):
             }
         elif self.config.provider == ProviderEnum.local:
             external_url = stage_outputs["stages/04-kubernetes-ingress"]["domain"]
-            forwardauth_service_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-service"]["value"]["name"]
-            forwardauth_middleware_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-middleware"]["value"]["name"]
+            forwardauth_service_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-service"]["value"][
+                "name"
+            ]
+            forwardauth_middleware_name = stage_outputs["stages/07-kubernetes-services"]["forward-auth-middleware"][
+                "value"
+            ]["name"]
 
-            minio_password = self.config.mlflow.local.minio_root_password if self.config.mlflow.local else "minio-secret-password"
+            minio_password = (
+                self.config.mlflow.local.minio_root_password if self.config.mlflow.local else "minio-secret-password"
+            )
 
             return {
                 "enabled": self.config.mlflow.enabled,
