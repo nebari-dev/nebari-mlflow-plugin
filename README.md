@@ -8,7 +8,7 @@
 - [License](#license)
 
 ## Introduction
-This MLflow extension supports "Azure", "GCP", and "local" Nebari deployments, and aims to eventually support Nebari deployments on "AWS" and "existing" k8s clusters as well. It provides a robust, collaborative environment for AI/ML professionals to manage experiments, track metrics, and deploy models.
+This MLflow extension supports "AWS", "Azure", "GCP", and "local" Nebari deployments. It provides a robust, collaborative environment for AI/ML professionals to manage experiments, track metrics, and deploy models.
 
 ### Features
 **Centralized Artifact Repository**: Store and manage all your metrics, parameters, and artifacts in a single location, accessible across the multi-tenant platform.
@@ -19,8 +19,8 @@ This MLflow extension supports "Azure", "GCP", and "local" Nebari deployments, a
 
 ### Installation
 Prerequisites:
-- Nebari must be deployed using the Azure, GCP, or local provider
-- Nebari version 2024.10.1 or later
+- Nebari must be deployed using the AWS, Azure, GCP, or local provider
+- Nebari version 2024.10.1 or later (or a version with IRSA support for AWS)
 
 Installing the MLflow extension is as straightforward as installing a Python package. Run the following commands:
 
@@ -59,6 +59,24 @@ Or via the GCP Console:
 6. Click "SAVE"
 
 This role includes the `iam.serviceAccounts.setIamPolicy` permission required for the MLflow plugin to create workload identity bindings.
+
+**For AWS**, your IAM user or role used for Nebari deployment needs permissions to create and manage:
+- S3 buckets and bucket policies
+- IAM roles and policies for IRSA (IAM Roles for Service Accounts)
+- KMS keys (if S3 encryption is enabled)
+
+The deployment requires an EKS cluster with OIDC provider configured for IRSA. The MLflow plugin will automatically:
+- Create an S3 bucket for artifact storage with versioning enabled
+- Create IAM roles and policies for the MLflow service account
+- Configure the Kubernetes service account with the appropriate IAM role annotations
+
+You can optionally disable S3 encryption by adding this to your Nebari configuration:
+```yaml
+mlflow:
+  enabled: true
+  aws:
+    enable_s3_encryption: false
+```
 
 #### Configuring MLflow Tracking URL
 You may set the `MLFLOW_TRACKING_URL` to configure mlflow in individual users' Nebari instances by adding or updating an additional block in your Nebari configuration file. Be sure to replace `{project_name}` and `{namespace}` with the values from your own nebari config file e.g. `http://mynebari-mlflow-tracking.dev.svc:5000`.
