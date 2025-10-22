@@ -75,12 +75,6 @@ runs:
                 size: 1Gi
         EOM
 
-        # Enable MLflow plugin in config
-        cat >> '${{ steps.metadata.outputs.config }}' <<- EOM
-        mlflow:
-          enabled: true
-        EOM
-
     - shell: bash
       run: |
         # Display Nebari config
