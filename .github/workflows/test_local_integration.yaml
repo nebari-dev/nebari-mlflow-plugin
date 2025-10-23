@@ -98,6 +98,7 @@ jobs:
       - name: Install Nebari and playwright
         run: |
           uv sync --group dev
+          uv pip install --force-reinstall git+https://github.com/nebari-dev/nebari.git@main
           uv run playwright install
 
       - name: Initialize Nebari config for local deployment
