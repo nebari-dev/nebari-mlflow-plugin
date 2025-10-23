@@ -36,6 +36,8 @@ on:
         required: true
         type: string
   workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * MON"
 
 # When the cancel-in-progress: true option is specified, any concurrent jobs or workflows using the same
 # concurrency group will cancel both the pending and currently running jobs or workflows. This allows only
