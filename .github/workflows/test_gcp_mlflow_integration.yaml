@@ -61,10 +61,22 @@ jobs:
             workload_identity_provider: ${{ secrets.GCP_WORKFLOW_PROVIDER }}
             service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Verify GCP authentication
+      - name: Verify GCP authentication and credentials
         run: |
+          echo "=== Activating service account ==="
+          gcloud auth login --cred-file="$GOOGLE_APPLICATION_CREDENTIALS" --quiet
+          echo ""
+          echo "=== Checking gcloud auth ==="
           gcloud auth list
-          gcloud config list project
+          echo ""
+          echo "=== Testing API access ==="
+          gcloud projects describe ${{ steps.auth.outputs.project_id }} --format="value(projectId)" || echo "Failed to access project API"
+
+      - name: Debug environment variables
+        run: |
+          echo "GOOGLE_CREDENTIALS will be: ${{ steps.auth.outputs.credentials_file_path }}"
+          echo "PROJECT_ID from auth: ${{ steps.auth.outputs.project_id }}"
+          echo "PROJECT_ID from secret: ${{ secrets.GCP_PROJECT_ID }}"
 
       - name: Integration Tests
         run: |
