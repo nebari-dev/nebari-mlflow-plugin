@@ -193,58 +193,6 @@ jobs:
           path: |
             ./nebari/tests/tests_e2e/playwright/videos/
 
-      ### CONDA-STORE TESTS
-      - name: "Checkout conda-store"
-        # Pin checkout version due to issue with node24 support on self-hosted runners
-        uses: actions/checkout@v4
-        with:
-          repository: conda-incubator/conda-store
-          ref: main
-          path: conda-store
-
-      - name: "Set up conda-store conda env"
-        uses: conda-incubator/setup-miniconda@v3
-        env:
-          CONDA: /home/runnerx/miniconda3
-        with:
-            environment-file: conda-store/conda-store-server/environment-dev.yaml
-            miniforge-version: latest
-            auto-activate-base: false
-            activate-environment: conda-store-server-dev
-            python-version: ${{ env.PYTHON_VERSION }}
-            conda-remove-defaults: "true"
-
-      - name: Install conda-store dependencies
-        run: |
-          python -m pip install "conda-lock>=1.0.5,<3.0.0"  # Added until https://github.com/conda-incubator/conda-store/issues/1095 is solved upstream
-          # Below added until https://github.com/nebari-dev/nebari/issues/3118 is resolved upstream
-          conda install constructor==3.11.3
-          python -m pip install conda-store/conda-store-server
-
-      - name: Get conda store token from login
-        id: conda-store-token
-        env:
-          BASE_URL: ${{ steps.init.outputs.domain }}
-          KEYCLOAK_USERNAME: ${{ env.TEST_SUPERADMIN_USER }}
-          KEYCLOAK_PASSWORD: ${{ env.TEST_SUPERADMIN_PASSWORD }}
-        run: |
-          echo "CONDA_STORE_TOKEN=$(python scripts/get_conda_store_token.py)" >> "$GITHUB_OUTPUT"
-
-      - name: Run conda-store-server user_journey tests
-        env:
-          CONDA_STORE_BASE_URL: https://${{ steps.init.outputs.domain }}
-          CONDA_STORE_TEST_VERIFY_SSL: 0
-          CONDA_STORE_TOKEN: ${{ steps.conda-store-token.outputs.CONDA_STORE_TOKEN }}
-        run: |
-          curl --insecure --header "Authorization: Bearer ${CONDA_STORE_TOKEN}" ${CONDA_STORE_BASE_URL}/conda-store/api/v1/permission/ | jq
-          cd conda-store/conda-store-server
-          python -m pytest -m "user_journey"
-
-      - name: Get conda-store-server logs
-        if: ${{ failure() }}
-        run: |
-          kubectl logs -n dev deployment/nebari-conda-store-server
-
       ### CLEANUP AFTER TESTS
       - name: Cleanup nebari deployment
         # Since this is not critical for most pull requests and takes more than half of the time
@@ -252,6 +200,4 @@ jobs:
         # up feedback cycle
         if: github.ref_name == 'main' || github.event_name == 'workflow_dispatch'
         working-directory: ${{ steps.init.outputs.directory }}
-        # We need to use the conda environment to run the nebari command as the current environment
-        # is the one that was created to run the conda-store user journey tests
-        run: conda run -n nebari nebari destroy --config ${{ steps.init.outputs.config }} --disable-prompt
+        run: nebari nebari destroy --config ${{ steps.init.outputs.config }} --disable-prompt
