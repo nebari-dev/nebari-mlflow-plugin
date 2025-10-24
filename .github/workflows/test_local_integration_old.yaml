@@ -54,8 +54,13 @@ jobs:
       - name: "Checkout Infrastructure"
       # Pin checkout version due to issue with node24 support on self-hosted runners
         uses: actions/checkout@v4
+
+      - name: "Checkout Nebari repository"
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          repository: nebari-dev/nebari
+          ref: main
+          path: nebari
 
       # https://kind.sigs.k8s.io/docs/user/known-issues/#pod-errors-due-to-too-many-open-files
       - name: "Update inotify ulimit"
@@ -110,8 +115,8 @@ jobs:
 
       - name: Install Nebari and playwright
         run: |
-          pip install -e .[dev]
-          pip install "git+https://github.com/nebari-dev/nebari.git@main#egg=nebari[dev]"
+          pip install -e .[dev]          
+          pip install nebari[dev]  
           playwright install
 
           conda env export | tee conda-env.yaml
@@ -159,7 +164,7 @@ jobs:
           KEYCLOAK_USERNAME: ${{ env.TEST_USERNAME }}
           KEYCLOAK_PASSWORD: ${{ env.TEST_PASSWORD }}
         run: |
-          pytest tests/tests_deployment/ -v -s
+          pytest nebari/tests/tests_deployment/ -v -s
 
       ### USER-JOURNEY TESTS
       - uses: actions/setup-node@v4
@@ -171,7 +176,7 @@ jobs:
           KEYCLOAK_USERNAME: ${{ env.TEST_USERNAME }}
           KEYCLOAK_PASSWORD: ${{ env.TEST_PASSWORD }}
           NEBARI_FULL_URL: "https://${{ steps.init.outputs.domain }}/"
-        working-directory: tests/tests_e2e/playwright
+        working-directory: nebari/tests/tests_e2e/playwright
         run: |
           # create environment file
           envsubst < .env.tpl > .env
@@ -184,14 +189,13 @@ jobs:
         with:
           name: e2e-playwright
           path: |
-            ./tests/tests_e2e/playwright/videos/
+            ./nebari/tests/tests_e2e/playwright/videos/
 
       ### CONDA-STORE TESTS
       - name: "Checkout conda-store"
         # Pin checkout version due to issue with node24 support on self-hosted runners
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           repository: conda-incubator/conda-store
           ref: main
           path: conda-store
