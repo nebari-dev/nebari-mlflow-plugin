@@ -55,35 +55,29 @@ jobs:
           playwright install
 
       - name: 'Authenticate to GCP'
-        id: auth
         uses: 'google-github-actions/auth@v1'
         with:
             workload_identity_provider: ${{ secrets.GCP_WORKFLOW_PROVIDER }}
             service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Verify GCP authentication and credentials
+      - name: Set required environment variables
         run: |
-          echo "=== Activating service account ==="
-          gcloud auth login --cred-file="$GOOGLE_APPLICATION_CREDENTIALS" --quiet
-          echo ""
-          echo "=== Checking gcloud auth ==="
-          gcloud auth list
-          echo ""
-          echo "=== Testing API access ==="
-          gcloud projects describe ${{ steps.auth.outputs.project_id }} --format="value(projectId)" || echo "Failed to access project API"
+          echo "GOOGLE_CREDENTIALS=${{ env.GOOGLE_APPLICATION_CREDENTIALS }}" >> $GITHUB_ENV
 
-      - name: Debug environment variables
+      - name: Verify GCP authentication
         run: |
-          echo "GOOGLE_CREDENTIALS will be: ${{ steps.auth.outputs.credentials_file_path }}"
-          echo "PROJECT_ID from auth: ${{ steps.auth.outputs.project_id }}"
-          echo "PROJECT_ID from secret: ${{ secrets.GCP_PROJECT_ID }}"
+          gcloud auth list
+          gcloud config list project
+
+      - name: Set required environment variables
+        run: |
+          echo "GOOGLE_CREDENTIALS=${{ env.GOOGLE_APPLICATION_CREDENTIALS }}" >> $GITHUB_ENV
 
       - name: Integration Tests
         run: |
           pytest --version
           pytest nebari/tests/tests_integration/ -vvv -s --cloud gcp
         env:
-          GOOGLE_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
           NEBARI_SECRET__default_images__jupyterhub: "quay.io/nebari/nebari-jupyterhub:${{ env.NEBARI_IMAGE_TAG }}"
           NEBARI_SECRET__default_images__jupyterlab: "quay.io/nebari/nebari-jupyterlab:${{ env.NEBARI_IMAGE_TAG }}"
           NEBARI_SECRET__default_images__dask_worker: "quay.io/nebari/nebari-dask-worker:${{ env.NEBARI_IMAGE_TAG }}"
