@@ -55,29 +55,23 @@ jobs:
           playwright install
 
       - name: 'Authenticate to GCP'
+        id: auth
         uses: 'google-github-actions/auth@v1'
         with:
             workload_identity_provider: ${{ secrets.GCP_WORKFLOW_PROVIDER }}
             service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Set required environment variables
-        run: |
-          echo "GOOGLE_CREDENTIALS=${{ env.GOOGLE_APPLICATION_CREDENTIALS }}" >> $GITHUB_ENV
 
       - name: Verify GCP authentication
         run: |
           gcloud auth list
           gcloud config list project
 
-      - name: Set required environment variables
-        run: |
-          echo "GOOGLE_CREDENTIALS=${{ env.GOOGLE_APPLICATION_CREDENTIALS }}" >> $GITHUB_ENV
-
       - name: Integration Tests
         run: |
           pytest --version
           pytest nebari/tests/tests_integration/ -vvv -s --cloud gcp
         env:
+          GOOGLE_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
           NEBARI_SECRET__default_images__jupyterhub: "quay.io/nebari/nebari-jupyterhub:${{ env.NEBARI_IMAGE_TAG }}"
           NEBARI_SECRET__default_images__jupyterlab: "quay.io/nebari/nebari-jupyterlab:${{ env.NEBARI_IMAGE_TAG }}"
           NEBARI_SECRET__default_images__dask_worker: "quay.io/nebari/nebari-dask-worker:${{ env.NEBARI_IMAGE_TAG }}"
