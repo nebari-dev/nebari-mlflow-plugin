@@ -45,7 +45,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-local-integration:
+  test-local-integration-old:
     runs-on: "cirun-runner--${{ github.run_id }}"
     defaults:
       run:
@@ -110,7 +110,7 @@ jobs:
 
       - name: Install Nebari and playwright
         run: |
-          pip install git+https://github.com/nebari-dev/nebari.git@main
+          pip install git+https://github.com/nebari-dev/nebari.git@main[dev]
           playwright install
 
       - name: Initialize Nebari config for local deployment
