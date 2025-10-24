@@ -31,8 +31,6 @@ dependencies = [
 dev = [
   "coverage[toml]>=6.5",
   "pytest",
-  "kubernetes",
-  "mypy>=1.0.0",
   "ruff>=0.0.243",
   "nebari[dev]>=2025.6.1"
 ]

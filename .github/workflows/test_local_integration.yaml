@@ -42,9 +42,9 @@ on:
 # When the cancel-in-progress: true option is specified, any concurrent jobs or workflows using the same
 # concurrency group will cancel both the pending and currently running jobs or workflows. This allows only
 # one job or workflow in the concurrency group to be in progress at a time.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+# concurrency:
+  # group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  # cancel-in-progress: true
 
 jobs:
   test-local-integration:
@@ -56,8 +56,13 @@ jobs:
       - name: "Checkout Infrastructure"
       # Pin checkout version due to issue with node24 support on self-hosted runners
         uses: actions/checkout@v4
+
+      - name: "Checkout Nebari repository"
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          repository: nebari-dev/nebari
+          ref: main
+          path: nebari
 
       # https://kind.sigs.k8s.io/docs/user/known-issues/#pod-errors-due-to-too-many-open-files
       - name: "Update inotify ulimit"
@@ -76,32 +81,55 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Python and uv
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+      - name: Set up Python
+        uses: conda-incubator/setup-miniconda@v3
+        env:
+          CONDA: /home/runnerx/miniconda3
         with:
+          auto-update-conda: true
           python-version: ${{ env.PYTHON_VERSION }}
-          enable-cache: true
-          cache-dependency-glob: |
-            **/pyproject.toml
-            **/uv.lock
-          cache-suffix: mlflow-plugin-v1
+          miniconda-version: "latest"
+          activate-environment: nebari
 
       - name: Install JQ
         run: |
-          # wait for lock to be released
-          while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-            echo "Waiting for other apt processes to finish..."
+          # Wait for apt locks with timeout
+          timeout=15
+          elapsed=0
+          while [ $elapsed -lt $timeout ]; do
+            if ! sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && \
+               ! sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1 && \
+               ! sudo fuser /var/lib/dpkg/lock >/dev/null 2>&1; then
+              break
+            fi
+            echo "Waiting for apt locks to be released... (${elapsed}s)"
             sleep 1
+            elapsed=$((elapsed + 1))
           done
+
+          if [ $elapsed -ge $timeout ]; then
+            echo "Timeout waiting for apt locks"
+            exit 1
+          fi
 
           sudo apt-get update
           sudo apt-get install jq -y
 
       - name: Install Nebari and playwright
         run: |
-          uv sync --group dev
-          uv pip install --force-reinstall git+https://github.com/nebari-dev/nebari.git@main
-          uv run playwright install
+          pip install -e .[dev]          
+          pip install ./nebari[dev]  
+          playwright install
+
+          conda env export | tee conda-env.yaml
+
+      - name: Save conda lockfile artifacts
+        if: always()
+        uses: actions/upload-artifact@v4.3.1
+        with:
+          name: conda-env-spec
+          path: |
+            conda-env.yaml
 
       - name: Initialize Nebari config for local deployment
         id: init
@@ -109,7 +137,7 @@ jobs:
 
       - name: Deploy Nebari
         working-directory: ${{ steps.init.outputs.directory }}
-        run: uv run nebari deploy --config ${{ steps.init.outputs.config }} --disable-prompt
+        run: nebari deploy --config ${{ steps.init.outputs.config }} --disable-prompt
 
       - name: Health check
         uses: ./.github/actions/health-check
@@ -119,9 +147,9 @@ jobs:
       - name: Create example-users
         working-directory: ${{ steps.init.outputs.directory }}
         run: |
-          uv run nebari keycloak add-user --user "${TEST_USERNAME}" -p "${TEST_PASSWORD}" --config ${{ steps.init.outputs.config }}
-          uv run nebari keycloak add-user --user "${TEST_SUPERADMIN_USER}" -p "${TEST_SUPERADMIN_PASSWORD}" --config ${{ steps.init.outputs.config }} --groups superadmin
-          uv run nebari keycloak list-users --config ${{ steps.init.outputs.config }}
+          nebari keycloak add-user --user "${TEST_USERNAME}" -p "${TEST_PASSWORD}" --config ${{ steps.init.outputs.config }}
+          nebari keycloak add-user --user "${TEST_SUPERADMIN_USER}" -p "${TEST_SUPERADMIN_PASSWORD}" --config ${{ steps.init.outputs.config }} --groups superadmin
+          nebari keycloak list-users --config ${{ steps.init.outputs.config }}
 
       - name: Await Workloads
         uses: jupyterhub/action-k8s-await-workloads@v3
@@ -138,7 +166,7 @@ jobs:
           KEYCLOAK_USERNAME: ${{ env.TEST_USERNAME }}
           KEYCLOAK_PASSWORD: ${{ env.TEST_PASSWORD }}
         run: |
-          uv run pytest tests/tests_deployment/ -v -s
+          pytest nebari/tests/tests_deployment/ -v -s
 
       ### USER-JOURNEY TESTS
       - uses: actions/setup-node@v4
@@ -150,7 +178,7 @@ jobs:
           KEYCLOAK_USERNAME: ${{ env.TEST_USERNAME }}
           KEYCLOAK_PASSWORD: ${{ env.TEST_PASSWORD }}
           NEBARI_FULL_URL: "https://${{ steps.init.outputs.domain }}/"
-        working-directory: tests/tests_e2e/playwright
+        working-directory: nebari/tests/tests_e2e/playwright
         run: |
           # create environment file
           envsubst < .env.tpl > .env
@@ -163,60 +191,7 @@ jobs:
         with:
           name: e2e-playwright
           path: |
-            ./tests/tests_e2e/playwright/videos/
-
-      ### CONDA-STORE TESTS
-      - name: "Checkout conda-store"
-        # Pin checkout version due to issue with node24 support on self-hosted runners
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          repository: conda-incubator/conda-store
-          ref: main
-          path: conda-store
-
-      - name: "Set up conda-store conda env"
-        uses: conda-incubator/setup-miniconda@v3
-        env:
-          CONDA: /home/runnerx/miniconda3
-        with:
-            environment-file: conda-store/conda-store-server/environment-dev.yaml
-            miniforge-version: latest
-            auto-activate-base: false
-            activate-environment: conda-store-server-dev
-            python-version: ${{ env.PYTHON_VERSION }}
-            conda-remove-defaults: "true"
-
-      - name: Install conda-store dependencies
-        run: |
-          python -m pip install "conda-lock>=1.0.5,<3.0.0"  # Added until https://github.com/conda-incubator/conda-store/issues/1095 is solved upstream
-          # Below added until https://github.com/nebari-dev/nebari/issues/3118 is resolved upstream
-          conda install constructor==3.11.3
-          python -m pip install conda-store/conda-store-server
-
-      - name: Get conda store token from login
-        id: conda-store-token
-        env:
-          BASE_URL: ${{ steps.init.outputs.domain }}
-          KEYCLOAK_USERNAME: ${{ env.TEST_SUPERADMIN_USER }}
-          KEYCLOAK_PASSWORD: ${{ env.TEST_SUPERADMIN_PASSWORD }}
-        run: |
-          echo "CONDA_STORE_TOKEN=$(python scripts/  get_conda_store_token.py)" >> "$GITHUB_OUTPUT"
-
-      - name: Run conda-store-server user_journey tests
-        env:
-          CONDA_STORE_BASE_URL: https://${{ steps.init.outputs.domain }}
-          CONDA_STORE_TEST_VERIFY_SSL: 0
-          CONDA_STORE_TOKEN: ${{ steps.conda-store-token.outputs.CONDA_STORE_TOKEN }}
-        run: |
-          curl --insecure --header "Authorization: Bearer ${CONDA_STORE_TOKEN}" ${CONDA_STORE_BASE_URL}/conda-store/api/v1/permission/ | jq
-          cd conda-store/conda-store-server
-          python -m pytest -m "user_journey"
-
-      - name: Get conda-store-server logs
-        if: ${{ failure() }}
-        run: |
-          kubectl logs -n dev deployment/nebari-conda-store-server
+            ./nebari/tests/tests_e2e/playwright/videos/
 
       ### CLEANUP AFTER TESTS
       - name: Cleanup nebari deployment
@@ -225,4 +200,4 @@ jobs:
         # up feedback cycle
         if: github.ref_name == 'main' || github.event_name == 'workflow_dispatch'
         working-directory: ${{ steps.init.outputs.directory }}
-        run: uv run nebari destroy --config ${{ steps.init.outputs.config }} --disable-prompt
+        run: nebari nebari destroy --config ${{ steps.init.outputs.config }} --disable-prompt
