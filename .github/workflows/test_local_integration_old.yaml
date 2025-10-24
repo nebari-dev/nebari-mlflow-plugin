@@ -110,8 +110,18 @@ jobs:
 
       - name: Install Nebari and playwright
         run: |
-          pip install git+https://github.com/nebari-dev/nebari.git@main[dev]
+          pip install "git+https://github.com/nebari-dev/nebari.git@main#egg=nebari[dev]"
           playwright install
+
+          conda env export | tee conda-env.yaml
+
+      - name: Save conda lockfile artifacts
+        if: always()
+        uses: actions/upload-artifact@v4.3.1
+        with:
+          name: conda-env-spec
+          path: |
+            conda-env.yaml
 
       - name: Initialize Nebari config for local deployment
         id: init
