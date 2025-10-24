@@ -116,7 +116,7 @@ jobs:
       - name: Install Nebari and playwright
         run: |
           pip install -e .[dev]          
-          pip install nebari[dev]  
+          pip install ./nebari[dev]  
           playwright install
 
           conda env export | tee conda-env.yaml
