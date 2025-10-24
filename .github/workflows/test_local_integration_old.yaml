@@ -42,7 +42,7 @@ on:
 # one job or workflow in the concurrency group to be in progress at a time.
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+  cancel-in-progress: false 
 
 jobs:
   test-local-integration-old:
