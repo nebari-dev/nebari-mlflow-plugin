@@ -71,7 +71,7 @@ jobs:
           sudo sysctl fs.inotify.max_user_instances=512
 
       - name: Setup runner for local deployment
-        uses: ./.github/actions/setup-local
+        uses: nebari-dev/nebari/.github/actions/setup-local@main
 
       - name: Checkout the branch from the PR that triggered the job
         if: ${{ github.event_name == 'issue_comment' }}
@@ -200,4 +200,4 @@ jobs:
         # up feedback cycle
         if: github.ref_name == 'main' || github.event_name == 'workflow_dispatch'
         working-directory: ${{ steps.init.outputs.directory }}
-        run: nebari nebari destroy --config ${{ steps.init.outputs.config }} --disable-prompt
+        run: nebari destroy --config ${{ steps.init.outputs.config }} --disable-prompt

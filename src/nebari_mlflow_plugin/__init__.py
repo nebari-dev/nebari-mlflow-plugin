@@ -41,7 +41,6 @@ class InputSchema(Base):
 class MlflowStage(NebariTerraformStage):
     name = "mlflow"
     priority = 102
-    wait = True  # wait for install to complete on nebari deploy
     input_schema = InputSchema
 
     @property
@@ -49,15 +48,13 @@ class MlflowStage(NebariTerraformStage):
         return Path(inspect.getfile(self.__class__)).parent / "template" / self.config.provider.value
 
     def check(self, stage_outputs: dict[str, dict[str, Any]], disable_prompt=False) -> bool:
-        # TODO: Module requires EKS cluster is configured for IRSA.  Once Nebari version with IRSA is released, should update
-        # this error message and also minimum Nebari version in pyproject.toml
         if self.config.provider == ProviderEnum.aws:
             try:
                 _ = stage_outputs["stages/02-infrastructure"]["cluster_oidc_issuer_url"]["value"]
 
             except KeyError:
                 print(
-                    "\nPrerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url.  Please ensure Nebari version is at least XX."
+                    "\nPrerequisite stage output(s) not found in stages/02-infrastructure: cluster_oidc_issuer_url."
                 )
                 return False
 
