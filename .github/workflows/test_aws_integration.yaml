@@ -52,7 +52,7 @@ jobs:
           cd nebari
           pip install -e .[dev]
           cd ..
-          # pip install .
+          pip install -e .
           playwright install
 
       - name: Authenticate to AWS
@@ -65,7 +65,7 @@ jobs:
       - name: Integration Tests
         run: |
           pytest --version
-          pytest tests/tests_integration/ -vvv -s --cloud aws
+          pytest nebari/tests/tests_integration/ -vvv -s --cloud aws
         env:
           NEBARI_SECRET__default_images__jupyterhub: "quay.io/nebari/nebari-jupyterhub:${{ env.NEBARI_IMAGE_TAG }}"
           NEBARI_SECRET__default_images__jupyterlab: "quay.io/nebari/nebari-jupyterlab:${{ env.NEBARI_IMAGE_TAG }}"
