@@ -21,9 +21,21 @@ resource "aws_s3_bucket" "artifact_storage" {
   bucket = "${var.project_name}-mlflow-artifacts-${random_id.bucket_name_suffix.hex}"
 }
 
-resource "aws_s3_bucket_acl" "artifact_storage" {
+resource "aws_s3_bucket_ownership_controls" "artifact_storage" {
   bucket = aws_s3_bucket.artifact_storage.id
-  acl    = "private"
+
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "artifact_storage" {
+  bucket = aws_s3_bucket.artifact_storage.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 resource "aws_s3_bucket_versioning" "artifact_storage" {
@@ -31,6 +43,11 @@ resource "aws_s3_bucket_versioning" "artifact_storage" {
   versioning_configuration {
     status = "Enabled"
   }
+
+  depends_on = [
+    aws_s3_bucket_ownership_controls.artifact_storage,
+    aws_s3_bucket_public_access_block.artifact_storage
+  ]
 }
 
 # If enable_s3_encryption is true, create a key and apply Server Side Encryption to S3 bucket
