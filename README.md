@@ -8,7 +8,7 @@
 - [License](#license)
 
 ## Introduction
-This MLflow extension supports "AWS", "Azure", "GCP", and "local" Nebari deployments. It provides a robust, collaborative environment for AI/ML professionals to manage experiments, track metrics, and deploy models.
+This MLflow extension supports AWS, Azure, GCP, and local Nebari deployments. It provides a robust, collaborative environment for AI/ML professionals to manage experiments, track metrics, and deploy models.
 
 ### Features
 **Centralized Artifact Repository**: Store and manage all your metrics, parameters, and artifacts in a single location, accessible across the multi-tenant platform.
