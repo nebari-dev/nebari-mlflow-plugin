@@ -1,3 +1,0 @@
-# Kubernetes Secrets
-k8s/overlays/*/secret.yaml
-k8s/overlays/*/secrets.yaml
