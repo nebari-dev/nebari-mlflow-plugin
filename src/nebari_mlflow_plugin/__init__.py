@@ -8,6 +8,11 @@ from nebari.hookspecs import NebariStage, hookimpl
 from nebari.schema import Base, ProviderEnum
 from pydantic import Field
 
+try:
+    from nebari_mlflow_plugin._version import __version__
+except ImportError:
+    __version__ = "unknown"
+
 
 class MlflowConfigAWS(Base):
     enable_s3_encryption: bool | None = True

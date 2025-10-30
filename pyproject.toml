@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
@@ -42,7 +42,8 @@ Issues = "https://github.com/Quansight/nebari-mlflow-plugin/issues"
 Source = "https://github.com/Quansight/nebari-mlflow-plugin"
 
 [tool.hatch.version]
-path = "src/nebari_mlflow_plugin/__about__.py"
+source = "vcs"
+version-file = "src/nebari_mlflow_plugin/_version.py"
 
 [tool.black]
 target-version = ["py310"]
