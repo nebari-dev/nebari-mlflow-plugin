@@ -12,7 +12,6 @@ jobs:
   test-pypi:
     name: Test PyPI Release
     runs-on: ubuntu-latest
-    environment: pypi
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
