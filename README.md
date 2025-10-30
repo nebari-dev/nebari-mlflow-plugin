@@ -1,5 +1,12 @@
 # Nebari MLflow Plugin
 
+| | |
+| --- | --- |
+| **Project** | [![License](https://img.shields.io/badge/License-Apache%202.0-gray.svg?colorA=2D2A56&colorB=5936D9&style=flat.svg)](https://opensource.org/licenses/Apache-2.0) [![PyPI](https://img.shields.io/pypi/v/nebari-mlflow-plugin)](https://pypi.org/project/nebari-mlflow-plugin/) |
+| **Community** | [![GH discussions](https://img.shields.io/badge/%F0%9F%92%AC%20-Participate%20in%20discussions-gray.svg?colorA=2D2A56&colorB=5936D9&style=flat.svg)](https://github.com/nebari-dev/nebari-mlflow-plugin/discussions) [![Open an issue](https://img.shields.io/badge/%F0%9F%93%9D%20Open-an%20issue-gray.svg?colorA=2D2A56&colorB=5936D9&style=flat.svg)](https://github.com/nebari-dev/nebari-mlflow-plugin/issues/new/choose) |
+| **CI** | [![Kubernetes Tests](https://github.com/nebari-dev/nebari-mlflow-plugin/actions/workflows/test_local_integration.yaml/badge.svg)](https://github.com/nebari-dev/nebari-mlflow-plugin/actions/workflows/test_local_integration.yaml) |
+| **Cloud Providers** | [![AWS Deployment](https://github.com/nebari-dev/nebari-mlflow-plugin/actions/workflows/test_aws_integration.yaml/badge.svg)](https://github.com/nebari-dev/nebari-mlflow-plugin/actions/workflows/test_aws_integration.yaml) [![Azure Deployment](https://github.com/nebari-dev/nebari-mlflow-plugin/actions/workflows/test_azure_mlflow_integration.yaml/badge.svg)](https://github.com/nebari-dev/nebari-mlflow-plugin/actions/workflows/test_azure_mlflow_integration.yaml) [![GCP Deployment](https://github.com/nebari-dev/nebari-mlflow-plugin/actions/workflows/test_gcp_mlflow_integration.yaml/badge.svg)](https://github.com/nebari-dev/nebari-mlflow-plugin/actions/workflows/test_gcp_mlflow_integration.yaml) |
+
 **Table of Contents**
 
 - [Features](#features)
