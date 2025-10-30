@@ -87,7 +87,7 @@ jobs:
               singleuser:
                 extraEnv:
                   MLFLOW_TRACKING_URI: "http://mlflow-test-azure-mlflow-tracking.dev.svc:5000"
-          nebari_mlflow_plugin:
+          mlflow:
             enabled: true
           EOF
 
